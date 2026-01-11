@@ -1,0 +1,53 @@
+import express from 'express';
+import cors from 'cors';
+import { ChecklistService } from './lib/services/ChecklistService.js';
+import type { ManualChecklistInput } from './lib/types/index.js';
+
+const app = express();
+const port = 3001;
+
+app.use(cors());
+app.use(express.json());
+
+const checklistService = new ChecklistService();
+
+// Health check
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// Checklist endpoints
+app.get('/api/checklist/:symbol', async (req, res) => {
+  const { symbol } = req.params;
+
+  try {
+    const result = await checklistService.generateChecklist(symbol.toUpperCase());
+    res.json(result);
+  } catch (error) {
+    console.error(`[API] Error generating checklist for ${symbol}:`, error);
+    res.status(500).json({
+      error: 'Failed to generate checklist',
+      message: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
+app.post('/api/checklist/:symbol', async (req, res) => {
+  const { symbol } = req.params;
+  const manualInput = req.body as ManualChecklistInput;
+
+  try {
+    const result = await checklistService.generateChecklist(symbol.toUpperCase(), manualInput);
+    res.json(result);
+  } catch (error) {
+    console.error(`[API] Error generating checklist for ${symbol}:`, error);
+    res.status(500).json({
+      error: 'Failed to generate checklist',
+      message: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
+app.listen(port, () => {
+  console.log(`API server running at http://localhost:${port}`);
+});

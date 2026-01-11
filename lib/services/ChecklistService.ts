@@ -48,7 +48,6 @@ export class ChecklistService {
     let secFilingInfo: SECFilingInfo | null = null;
     try {
       secFilingInfo = await this.secService.getFilingInfo(symbol);
-      console.log(`[ChecklistService] SEC filing info for ${symbol}:`, JSON.stringify(secFilingInfo, null, 2));
     } catch (error) {
       console.error(`[ChecklistService] SEC filing error:`, error);
       errors.push(`SEC filings unavailable: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -229,33 +228,6 @@ export class ChecklistService {
         },
         isManual: false,
       });
-    }
-
-    if (manualInput?.clinicalStage) {
-      const stageLabels: Record<string, string> = {
-        preclinical: 'Pre-clinical',
-        phase1: 'Phase 1',
-        phase2: 'Phase 2',
-        phase3: 'Phase 3',
-        bla_filed: 'BLA Filed',
-        approved: 'Approved',
-      };
-      items.push({
-        id: 'clinical_stage',
-        label: 'Clinical Stage',
-        description: 'Later stages = lower risk of total failure.',
-        value: manualInput.clinicalStage,
-        displayValue: stageLabels[manualInput.clinicalStage] || manualInput.clinicalStage,
-        status: this.getClinicalStageStatus(manualInput.clinicalStage),
-        thresholds: {
-          safe: 'Phase 3 / BLA Filed / Approved',
-          warning: 'Phase 2',
-          danger: 'Phase 1 / Pre-clinical',
-        },
-        isManual: true,
-      });
-    } else {
-      items.push(this.createManualItem('clinical_stage', 'Clinical Stage', 'Select clinical stage for biotech'));
     }
 
     return {
@@ -446,12 +418,6 @@ export class ChecklistService {
     if (percent < 10) return 'danger';
     if (percent < 30) return 'warning';
     return 'safe';
-  }
-
-  private getClinicalStageStatus(stage: string): ChecklistStatus {
-    if (['phase3', 'bla_filed', 'approved'].includes(stage)) return 'safe';
-    if (stage === 'phase2') return 'warning';
-    return 'danger';
   }
 
   private getCashRunwayStatus(months: number): ChecklistStatus {

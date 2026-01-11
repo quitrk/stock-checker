@@ -101,15 +101,16 @@ export function StockChecklist() {
       {checklist && (
         <div className="checklist-results">
           <div className="company-header">
-            <div className="company-info">
+            <div className="company-title">
               <h2>{checklist.symbol}</h2>
               <span className="company-name">{checklist.companyName}</span>
-              {checklist.isBiotech && <span className="biotech-badge">Biotech</span>}
             </div>
-            <div className="company-meta">
-              <span className="industry">{checklist.industry}</span>
+            <div className="company-details">
               <span className="price">${checklist.price.toFixed(2)}</span>
+              <span className="detail-separator">•</span>
               <span className="market-cap">{formatMarketCap(checklist.marketCap)}</span>
+              <span className="detail-separator">•</span>
+              <span className="industry">{checklist.industry}</span>
             </div>
           </div>
 
@@ -205,22 +206,6 @@ function ChecklistItemRow({ item, manualInput, onManualInputChange }: ChecklistI
             value={manualInput.institutionalOwnership ?? ''}
             onChange={(e) => onManualInputChange('institutionalOwnership', e.target.value ? parseFloat(e.target.value) : undefined)}
           />
-        );
-      case 'clinical_stage':
-        return (
-          <select
-            className="manual-select"
-            value={manualInput.clinicalStage ?? ''}
-            onChange={(e) => onManualInputChange('clinicalStage', e.target.value || undefined)}
-          >
-            <option value="">Select...</option>
-            <option value="preclinical">Pre-clinical</option>
-            <option value="phase1">Phase 1</option>
-            <option value="phase2">Phase 2</option>
-            <option value="phase3">Phase 3</option>
-            <option value="bla_filed">BLA Filed</option>
-            <option value="approved">Approved</option>
-          </select>
         );
       case 'days_below_1':
         return (

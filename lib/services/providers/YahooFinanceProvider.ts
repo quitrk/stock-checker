@@ -1,4 +1,6 @@
 import YahooFinance from 'yahoo-finance2';
+import type { QuoteSummaryResult } from 'yahoo-finance2/modules/quoteSummary';
+import type { Quote } from 'yahoo-finance2/modules/quote';
 import type { IFinanceProvider } from './IFinanceProvider.js';
 import { ProviderRateLimitError } from './IFinanceProvider.js';
 import type { FundamentalData, MarketData, StockData, HistoricalBar } from './types.js';
@@ -13,9 +15,8 @@ export class YahooFinanceProvider implements IFinanceProvider {
   private readonly MIN_REQUEST_INTERVAL = 500;
 
   constructor() {
-    this.yahooFinance = new YahooFinance({
-      suppressNotices: ['yahooSurvey'],
-    });
+    // Initialize yahoo-finance2 v3 with suppressed notices
+    this.yahooFinance = new YahooFinance({ suppressNotices: ['yahooSurvey'] });
   }
 
   private async throttle(): Promise<void> {
@@ -65,7 +66,7 @@ export class YahooFinanceProvider implements IFinanceProvider {
 
     console.log(`[YahooFinance] Fetching all data for ${symbol} in single call...`);
 
-    const data = await this.retry(() => this.yahooFinance.quoteSummary(symbol, {
+    const data: QuoteSummaryResult = await this.retry(() => this.yahooFinance.quoteSummary(symbol, {
       modules: [
         'price',
         'summaryDetail',
@@ -73,10 +74,11 @@ export class YahooFinanceProvider implements IFinanceProvider {
         'defaultKeyStatistics',
         'financialData',
         'majorHoldersBreakdown',
+        'assetProfile',
       ],
     }));
 
-    const rawIndustry = data.summaryDetail?.industry ?? data.quoteType?.industry;
+    const rawIndustry = data.assetProfile?.industry ?? data.summaryDetail?.industry ?? data.quoteType?.industry;
     const industry = typeof rawIndustry === 'string' ? rawIndustry : 'Unknown';
 
     const marketData: MarketData = {
@@ -178,7 +180,7 @@ export class YahooFinanceProvider implements IFinanceProvider {
   async getMarketData(symbol: string): Promise<MarketData> {
     console.log(`[YahooFinance] Fetching market data for ${symbol}`);
 
-    const quote = await this.retry(() => this.yahooFinance.quote(symbol));
+    const quote: Quote = await this.retry(() => this.yahooFinance.quote(symbol));
 
     return {
       symbol,

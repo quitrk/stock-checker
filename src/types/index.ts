@@ -39,7 +39,6 @@ export interface ChecklistResult {
 export interface ManualChecklistInput {
   insiderOwnership?: number;
   institutionalOwnership?: number;
-  clinicalStage?: 'preclinical' | 'phase1' | 'phase2' | 'phase3' | 'bla_filed' | 'approved';
   hasRecentATM?: boolean;
   hasPendingReverseSplit?: boolean;
   hasNasdaqDeficiency?: boolean;

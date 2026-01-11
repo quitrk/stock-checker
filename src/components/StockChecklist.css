@@ -88,22 +88,23 @@
 .company-header {
   display: flex;
   align-items: center;
-  gap: 2rem;
-  padding: 1.5rem;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.5rem;
   background: var(--surface);
   border-radius: 8px;
   margin-bottom: 1.5rem;
   flex-wrap: wrap;
 }
 
-.company-info {
+.company-title {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 0.75rem;
 }
 
-.company-info h2 {
-  font-size: 1.5rem;
+.company-title h2 {
+  font-size: 1.25rem;
   font-weight: 700;
   margin: 0;
 }
@@ -116,18 +117,22 @@
 .biotech-badge {
   background: #6366f1;
   color: white;
-  padding: 0.25rem 0.5rem;
+  padding: 0.2rem 0.5rem;
   border-radius: 4px;
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   font-weight: 600;
   text-transform: uppercase;
 }
 
-.company-meta {
+.company-details {
   display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  margin-left: auto;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.detail-separator {
+  color: var(--text-secondary);
+  opacity: 0.5;
 }
 
 .industry {
@@ -136,7 +141,7 @@
 }
 
 .price {
-  font-size: 1.25rem;
+  font-size: 1.1rem;
   font-weight: 600;
 }
 
@@ -399,11 +404,11 @@
   .company-header {
     flex-direction: column;
     align-items: flex-start;
-    gap: 1rem;
+    gap: 0.75rem;
   }
 
-  .company-meta {
-    margin-left: 0;
+  .company-details {
+    flex-wrap: wrap;
   }
 
   .checklist-item {
