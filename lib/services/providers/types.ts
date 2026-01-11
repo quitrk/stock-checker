@@ -14,7 +14,8 @@ export interface MarketData {
   priceChange: number;
   priceChangePercent: number;
   volume: number;
-  avgVolume: number;
+  avgVolume10Day: number;
+  avgVolume90Day: number;
   high52Week: number;
   low52Week: number;
   companyName: string;

@@ -88,24 +88,44 @@ export class ChecklistService {
   private buildVolumeAnalysis(marketData: MarketData | null): ChecklistCategory {
     const items: ChecklistItem[] = [];
 
-    if (marketData && marketData.avgVolume > 0) {
-      const volumeRatio = marketData.volume / marketData.avgVolume;
+    if (marketData && marketData.avgVolume10Day > 0) {
+      const volumeRatio10 = marketData.volume / marketData.avgVolume10Day;
       items.push({
-        id: 'volume_ratio',
-        label: 'Volume vs 90-Day Average',
-        description: 'Compare current volume to average. High volume spikes without news = red flag.',
-        value: volumeRatio,
-        displayValue: `${volumeRatio.toFixed(1)}x average`,
-        status: this.getVolumeRatioStatus(volumeRatio),
+        id: 'volume_ratio_10d',
+        label: 'Volume vs 10-Day Avg',
+        description: 'Compare current volume to 10-day average. High spikes without news = red flag.',
+        value: volumeRatio10,
+        displayValue: `${volumeRatio10.toFixed(1)}x`,
+        status: this.getVolumeRatioStatus(volumeRatio10),
         thresholds: {
-          safe: '1-3x average',
-          warning: '5-10x average',
-          danger: '20x+ average',
+          safe: '1-3x',
+          warning: '5-10x',
+          danger: '20x+',
         },
         isManual: false,
       });
     } else {
-      items.push(this.createUnavailableItem('volume_ratio', 'Volume vs 90-Day Average', 'Volume data unavailable'));
+      items.push(this.createUnavailableItem('volume_ratio_10d', 'Volume vs 10-Day Avg', 'Volume data unavailable'));
+    }
+
+    if (marketData && marketData.avgVolume90Day > 0) {
+      const volumeRatio90 = marketData.volume / marketData.avgVolume90Day;
+      items.push({
+        id: 'volume_ratio_90d',
+        label: 'Volume vs 90-Day Avg',
+        description: 'Compare current volume to 90-day average. Sustained high volume = increased interest.',
+        value: volumeRatio90,
+        displayValue: `${volumeRatio90.toFixed(1)}x`,
+        status: this.getVolumeRatioStatus(volumeRatio90),
+        thresholds: {
+          safe: '1-3x',
+          warning: '5-10x',
+          danger: '20x+',
+        },
+        isManual: false,
+      });
+    } else {
+      items.push(this.createUnavailableItem('volume_ratio_90d', 'Volume vs 90-Day Avg', 'Volume data unavailable'));
     }
 
     if (marketData) {
