@@ -1,0 +1,418 @@
+.stock-checklist {
+  padding: 1.5rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.checklist-header {
+  margin-bottom: 2rem;
+}
+
+.checklist-header h1 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin: 0 0 0.5rem 0;
+}
+
+.checklist-subtitle {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+/* Symbol Input Form */
+.symbol-form {
+  margin-bottom: 2rem;
+}
+
+.symbol-input-group {
+  display: flex;
+  gap: 0.5rem;
+  max-width: 360px;
+}
+
+.symbol-input {
+  flex: 1;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  background: var(--surface);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-primary);
+  text-transform: uppercase;
+}
+
+.symbol-input:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+.stock-checklist .btn-primary {
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.stock-checklist .btn-primary:hover:not(:disabled) {
+  background: var(--primary-hover, #4f46e5);
+}
+
+.stock-checklist .btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  background: var(--surface);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: var(--surface-hover, #333);
+}
+
+/* Company Header */
+.company-header {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  padding: 1.5rem;
+  background: var(--surface);
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.company-info {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.company-info h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.company-name {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.biotech-badge {
+  background: #6366f1;
+  color: white;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.company-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-left: auto;
+}
+
+.industry {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+.price {
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.market-cap {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+/* Categories Grid */
+.categories-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(480px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+/* Category Card */
+.category-card {
+  background: var(--surface);
+  border-radius: 8px;
+  padding: 1.25rem;
+  border-left: 4px solid;
+}
+
+.category-card.status-safe {
+  border-left-color: #10b981;
+}
+
+.category-card.status-warning {
+  border-left-color: #f59e0b;
+}
+
+.category-card.status-danger {
+  border-left-color: #ef4444;
+}
+
+.category-card.status-manual {
+  border-left-color: #6366f1;
+}
+
+.category-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.category-header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.category-status {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+}
+
+.category-status.status-safe {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+}
+
+.category-status.status-warning {
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+}
+
+.category-status.status-danger {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+
+.category-status.status-manual {
+  background: rgba(99, 102, 241, 0.15);
+  color: #6366f1;
+}
+
+.category-description {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  margin: 0 0 1rem 0;
+}
+
+/* Checklist Items */
+.checklist-items {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.checklist-item {
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background: var(--background);
+  border-radius: 6px;
+  align-items: flex-start;
+}
+
+.item-status {
+  flex-shrink: 0;
+}
+
+.status-indicator {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.status-indicator.status-safe {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+}
+
+.status-indicator.status-warning {
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+}
+
+.status-indicator.status-danger {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+
+.status-indicator.status-manual {
+  background: rgba(99, 102, 241, 0.15);
+  color: #6366f1;
+}
+
+.status-indicator.status-unavailable {
+  background: rgba(156, 163, 175, 0.15);
+  color: #9ca3af;
+}
+
+.item-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.item-label {
+  font-weight: 600;
+  font-size: 0.9rem;
+  margin-bottom: 0.25rem;
+}
+
+.item-description {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.5rem;
+}
+
+.item-thresholds {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.threshold {
+  font-size: 0.7rem;
+  padding: 0.15rem 0.4rem;
+  border-radius: 3px;
+}
+
+.threshold.safe {
+  background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+}
+
+.threshold.warning {
+  background: rgba(245, 158, 11, 0.1);
+  color: #f59e0b;
+}
+
+.threshold.danger {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+.item-value {
+  flex-shrink: 0;
+  text-align: right;
+}
+
+.item-value .value {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.item-value .value.status-safe {
+  color: #10b981;
+}
+
+.item-value .value.status-warning {
+  color: #f59e0b;
+}
+
+.item-value .value.status-danger {
+  color: #ef4444;
+}
+
+.item-value .value.status-unavailable {
+  color: var(--text-secondary);
+}
+
+/* Manual Input Fields */
+.manual-input,
+.manual-select {
+  padding: 0.4rem 0.6rem;
+  font-size: 0.85rem;
+  background: var(--surface);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-primary);
+  width: 80px;
+}
+
+.manual-select {
+  width: auto;
+  min-width: 100px;
+}
+
+.manual-input:focus,
+.manual-select:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+/* Actions */
+.checklist-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.last-updated {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .categories-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .company-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .company-meta {
+    margin-left: 0;
+  }
+
+  .checklist-item {
+    flex-wrap: wrap;
+  }
+
+  .item-value {
+    width: 100%;
+    text-align: left;
+    margin-top: 0.5rem;
+  }
+}
