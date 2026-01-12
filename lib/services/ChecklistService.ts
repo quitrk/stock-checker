@@ -1,11 +1,11 @@
 import { YahooFinanceProvider, type FundamentalData, type MarketData } from './providers/index.js';
 import { SECService, SECFilingInfo } from './SECService.js';
+import { getCached, setCache, cacheKey } from './CacheService.js';
 import type {
   ChecklistResult,
   ChecklistCategory,
   ChecklistItem,
   ChecklistStatus,
-  ManualChecklistInput,
 } from '../types/index.js';
 
 export class ChecklistService {
@@ -17,21 +17,28 @@ export class ChecklistService {
     this.secService = new SECService();
   }
 
-  async generateChecklist(
-    symbol: string,
-    manualInput?: ManualChecklistInput
-  ): Promise<ChecklistResult> {
+  async generateChecklist(symbol: string, skipCache = false): Promise<ChecklistResult> {
+    const upperSymbol = symbol.toUpperCase();
+
+    // Check cache first (unless skipping)
+    if (!skipCache) {
+      const cached = await getCached<ChecklistResult>(cacheKey('checklist', upperSymbol));
+      if (cached) {
+        return cached;
+      }
+    }
+
     const errors: string[] = [];
     let marketData: MarketData | null = null;
     let fundamentalData: FundamentalData | null = null;
     let daysBelow1Dollar: number | null = null;
 
     try {
-      console.log(`[ChecklistService] Fetching stock data for ${symbol}...`);
-      const stockData = await this.financeProvider.getStockData(symbol);
+      console.log(`[ChecklistService] Fetching stock data for ${upperSymbol}...`);
+      const stockData = await this.financeProvider.getStockData(upperSymbol);
       marketData = stockData.marketData;
       fundamentalData = stockData.fundamentalData;
-      console.log(`[ChecklistService] Stock data received for ${symbol}`);
+      console.log(`[ChecklistService] Stock data received for ${upperSymbol}`);
     } catch (error) {
       console.error(`[ChecklistService] Stock data error:`, error);
       errors.push(`Stock data unavailable: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -39,7 +46,7 @@ export class ChecklistService {
 
     if (marketData && marketData.price < 5) {
       try {
-        daysBelow1Dollar = await this.calculateDaysBelow1Dollar(symbol);
+        daysBelow1Dollar = await this.calculateDaysBelow1Dollar(upperSymbol);
       } catch (error) {
         console.error(`[ChecklistService] Days below $1 calculation error:`, error);
       }
@@ -47,7 +54,7 @@ export class ChecklistService {
 
     let secFilingInfo: SECFilingInfo | null = null;
     try {
-      secFilingInfo = await this.secService.getFilingInfo(symbol);
+      secFilingInfo = await this.secService.getFilingInfo(upperSymbol);
     } catch (error) {
       console.error(`[ChecklistService] SEC filing error:`, error);
       errors.push(`SEC filings unavailable: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -57,16 +64,16 @@ export class ChecklistService {
 
     const categories: ChecklistCategory[] = [
       this.buildVolumeAnalysis(marketData),
-      this.buildFundamentalsCategory(fundamentalData, manualInput),
-      this.buildPriceAnalysis(marketData, daysBelow1Dollar, manualInput),
-      this.buildRiskIndicators(secFilingInfo, manualInput),
+      this.buildFundamentalsCategory(fundamentalData),
+      this.buildPriceAnalysis(marketData, daysBelow1Dollar),
+      this.buildRiskIndicators(secFilingInfo),
     ];
 
     const overallStatus = this.calculateOverallStatus(categories);
 
-    return {
-      symbol: symbol.toUpperCase(),
-      companyName: marketData?.companyName || symbol.toUpperCase(),
+    const result: ChecklistResult = {
+      symbol: upperSymbol,
+      companyName: marketData?.companyName || upperSymbol,
       industry: marketData?.industry || 'Unknown',
       isBiotech,
       price: marketData?.price || 0,
@@ -76,6 +83,13 @@ export class ChecklistService {
       timestamp: new Date().toISOString(),
       errors,
     };
+
+    // Cache the result if no errors
+    if (errors.length === 0) {
+      await setCache(cacheKey('checklist', upperSymbol), result);
+    }
+
+    return result;
   }
 
   private checkIfBiotech(industry: string | null | undefined): boolean {
@@ -102,7 +116,6 @@ export class ChecklistService {
           warning: '5-10x',
           danger: '20x+',
         },
-        isManual: false,
       });
     } else {
       items.push(this.createUnavailableItem('volume_ratio_10d', 'Volume vs 10-Day Avg', 'Volume data unavailable'));
@@ -122,7 +135,6 @@ export class ChecklistService {
           warning: '5-10x',
           danger: '20x+',
         },
-        isManual: false,
       });
     } else {
       items.push(this.createUnavailableItem('volume_ratio_90d', 'Volume vs 90-Day Avg', 'Volume data unavailable'));
@@ -142,7 +154,6 @@ export class ChecklistService {
           warning: '20-50%',
           danger: '50%+',
         },
-        isManual: false,
       });
     } else {
       items.push(this.createUnavailableItem('price_change', 'Daily Price Change', 'Price data unavailable'));
@@ -157,15 +168,11 @@ export class ChecklistService {
     };
   }
 
-  private buildFundamentalsCategory(
-    fundamentalData: FundamentalData | null,
-    manualInput?: ManualChecklistInput
-  ): ChecklistCategory {
+  private buildFundamentalsCategory(fundamentalData: FundamentalData | null): ChecklistCategory {
     const items: ChecklistItem[] = [];
 
     const rawInsiderOwnership = fundamentalData?.insiderOwnership;
-    const insiderOwnership = manualInput?.insiderOwnership ??
-      (rawInsiderOwnership != null ? rawInsiderOwnership * 100 : null);
+    const insiderOwnership = rawInsiderOwnership != null ? rawInsiderOwnership * 100 : null;
 
     if (insiderOwnership !== null) {
       items.push({
@@ -180,15 +187,13 @@ export class ChecklistService {
           warning: '10-20%',
           danger: '<10%',
         },
-        isManual: manualInput?.insiderOwnership !== undefined,
       });
     } else {
-      items.push(this.createManualItem('insider_ownership', 'Insider Ownership', 'Data unavailable'));
+      items.push(this.createUnavailableItem('insider_ownership', 'Insider Ownership', 'Data unavailable'));
     }
 
     const rawInstitutionalOwnership = fundamentalData?.institutionalOwnership;
-    const institutionalOwnership = manualInput?.institutionalOwnership ??
-      (rawInstitutionalOwnership != null ? rawInstitutionalOwnership * 100 : null);
+    const institutionalOwnership = rawInstitutionalOwnership != null ? rawInstitutionalOwnership * 100 : null;
 
     if (institutionalOwnership !== null) {
       items.push({
@@ -203,12 +208,38 @@ export class ChecklistService {
           warning: '10-30%',
           danger: '<10%',
         },
-        isManual: manualInput?.institutionalOwnership !== undefined,
       });
     } else {
-      items.push(this.createManualItem('institutional_ownership', 'Institutional Ownership', 'Data unavailable'));
+      items.push(this.createUnavailableItem('institutional_ownership', 'Institutional Ownership', 'Data unavailable'));
     }
 
+    // Free Cash Flow
+    if (fundamentalData?.freeCashFlow !== null && fundamentalData?.freeCashFlow !== undefined) {
+      const fcf = fundamentalData.freeCashFlow;
+      const isNegative = fcf < 0;
+      const absFcf = Math.abs(fcf);
+      const fcfDisplay = absFcf >= 1e9
+        ? `${isNegative ? '-' : '+'}$${(absFcf / 1e9).toFixed(2)}B`
+        : absFcf >= 1e6
+          ? `${isNegative ? '-' : '+'}$${(absFcf / 1e6).toFixed(1)}M`
+          : `${isNegative ? '-' : '+'}$${absFcf.toLocaleString()}`;
+
+      items.push({
+        id: 'free_cash_flow',
+        label: 'Free Cash Flow',
+        description: 'Annual cash generated (positive) or burned (negative).',
+        value: fcf,
+        displayValue: `${fcfDisplay}/yr`,
+        status: this.getFreeCashFlowStatus(fcf),
+        thresholds: {
+          safe: 'Positive',
+          warning: 'Slightly negative',
+          danger: 'Burning cash',
+        },
+      });
+    }
+
+    // Cash Runway
     if (fundamentalData?.cashRunwayMonths !== null && fundamentalData?.cashRunwayMonths !== undefined) {
       items.push({
         id: 'cash_runway',
@@ -222,9 +253,20 @@ export class ChecklistService {
           warning: '6-12 months',
           danger: '<6 months',
         },
-        isManual: false,
       });
-    } else if (fundamentalData?.totalCash !== null && fundamentalData?.totalCash !== undefined) {
+    } else if (fundamentalData?.freeCashFlow !== null && fundamentalData?.freeCashFlow !== undefined && fundamentalData.freeCashFlow >= 0) {
+      items.push({
+        id: 'cash_runway',
+        label: 'Cash Runway',
+        description: 'Company is generating cash, not burning it.',
+        value: null,
+        displayValue: 'N/A (FCF positive)',
+        status: 'safe',
+      });
+    }
+
+    // Total Cash
+    if (fundamentalData?.totalCash !== null && fundamentalData?.totalCash !== undefined) {
       const cash = fundamentalData.totalCash;
       const displayValue = cash >= 1e9
         ? `$${(cash / 1e9).toFixed(2)}B`
@@ -232,22 +274,57 @@ export class ChecklistService {
           ? `$${(cash / 1e6).toFixed(1)}M`
           : `$${cash.toLocaleString()}`;
 
-      const cashStatus: ChecklistStatus = cash < 10e6 ? 'danger' : cash < 50e6 ? 'warning' : 'safe';
-
       items.push({
-        id: 'cash_runway',
-        label: 'Cash Position',
-        description: 'Total cash on hand (burn rate unknown).',
+        id: 'total_cash',
+        label: 'Total Cash',
+        description: 'Cash and equivalents on hand.',
         value: cash,
         displayValue,
-        status: cashStatus,
+        status: this.getTotalCashStatus(cash),
         thresholds: {
           safe: '>$50M',
           warning: '$10-50M',
           danger: '<$10M',
         },
-        isManual: false,
       });
+    }
+
+    // R&D Spend / Revenue ratio
+    if (fundamentalData?.researchDevelopment !== null && fundamentalData?.researchDevelopment !== undefined) {
+      const rd = fundamentalData.researchDevelopment;
+      const revenue = fundamentalData.totalRevenue;
+
+      if (revenue && revenue > 0) {
+        const rdRevenueRatio = (rd / revenue) * 100;
+        items.push({
+          id: 'rd_revenue_ratio',
+          label: 'R&D / Revenue',
+          description: 'R&D spending as percentage of revenue. High ratios may indicate unsustainable burn.',
+          value: rdRevenueRatio,
+          displayValue: `${rdRevenueRatio.toFixed(0)}%`,
+          status: this.getRdRevenueStatus(rdRevenueRatio),
+          thresholds: {
+            safe: '<50%',
+            warning: '50-100%',
+            danger: '>100%',
+          },
+        });
+      } else {
+        const rdDisplay = rd >= 1e9
+          ? `$${(rd / 1e9).toFixed(2)}B`
+          : rd >= 1e6
+            ? `$${(rd / 1e6).toFixed(1)}M`
+            : `$${rd.toLocaleString()}`;
+
+        items.push({
+          id: 'rd_spend',
+          label: 'R&D Spend (Annual)',
+          description: 'Annual R&D expenditure. Pre-revenue company.',
+          value: rd,
+          displayValue: `${rdDisplay} (pre-revenue)`,
+          status: 'safe',
+        });
+      }
     }
 
     return {
@@ -261,8 +338,7 @@ export class ChecklistService {
 
   private buildPriceAnalysis(
     marketData: MarketData | null,
-    calculatedDaysBelow1: number | null,
-    manualInput?: ManualChecklistInput
+    daysBelow1Dollar: number | null
   ): ChecklistCategory {
     const items: ChecklistItem[] = [];
 
@@ -279,7 +355,6 @@ export class ChecklistService {
           warning: '$1-$5',
           danger: '<$1',
         },
-        isManual: false,
       });
 
       if (marketData.high52Week > 0 && marketData.low52Week > 0) {
@@ -292,32 +367,26 @@ export class ChecklistService {
           value: position,
           displayValue: `${position.toFixed(0)}% (L: $${marketData.low52Week.toFixed(2)}, H: $${marketData.high52Week.toFixed(2)})`,
           status: 'safe',
-          isManual: false,
         });
       }
     } else {
       items.push(this.createUnavailableItem('price_level', 'Stock Price Level', 'Price data unavailable'));
     }
 
-    const daysBelow1 = manualInput?.daysBelow1Dollar ?? calculatedDaysBelow1;
-
-    if (daysBelow1 !== null && daysBelow1 !== undefined) {
+    if (daysBelow1Dollar !== null) {
       items.push({
         id: 'days_below_1',
         label: 'Consecutive Days Below $1',
         description: 'Nasdaq requires stocks to stay above $1. 30+ days = deficiency notice.',
-        value: daysBelow1,
-        displayValue: `${daysBelow1} days`,
-        status: this.getDaysBelow1Status(daysBelow1),
+        value: daysBelow1Dollar,
+        displayValue: `${daysBelow1Dollar} days`,
+        status: this.getDaysBelow1Status(daysBelow1Dollar),
         thresholds: {
           safe: '0 days',
           warning: '1-19 days',
           danger: '20+ days',
         },
-        isManual: manualInput?.daysBelow1Dollar !== undefined,
       });
-    } else if (marketData && marketData.price < 1) {
-      items.push(this.createManualItem('days_below_1', 'Days Trading Below $1', 'Could not calculate from history'));
     }
 
     return {
@@ -347,15 +416,11 @@ export class ChecklistService {
     return consecutiveDays;
   }
 
-  private buildRiskIndicators(
-    secFilingInfo: SECFilingInfo | null,
-    manualInput?: ManualChecklistInput
-  ): ChecklistCategory {
+  private buildRiskIndicators(secFilingInfo: SECFilingInfo | null): ChecklistCategory {
     const items: ChecklistItem[] = [];
 
-    const hasRecentATM = manualInput?.hasRecentATM ?? secFilingInfo?.hasRecentATM ?? null;
+    const hasRecentATM = secFilingInfo?.hasRecentATM ?? null;
     const atmFilingDate = secFilingInfo?.atmFilingDate;
-    const isATMFromSEC = manualInput?.hasRecentATM === undefined && secFilingInfo?.hasRecentATM !== undefined;
 
     items.push({
       id: 'recent_atm',
@@ -363,17 +428,13 @@ export class ChecklistService {
       description: 'At-The-Market offerings (S-3 filings) dilute shareholders.',
       value: hasRecentATM,
       displayValue: hasRecentATM !== null
-        ? (hasRecentATM
-            ? `Yes${atmFilingDate ? ` (${atmFilingDate})` : ''}`
-            : 'No')
-        : 'Not specified',
-      status: hasRecentATM === true ? 'warning' : (hasRecentATM === false ? 'safe' : 'manual'),
-      isManual: !isATMFromSEC,
+        ? (hasRecentATM ? `Yes${atmFilingDate ? ` (${atmFilingDate})` : ''}` : 'No')
+        : 'Unknown',
+      status: hasRecentATM === true ? 'warning' : (hasRecentATM === false ? 'safe' : 'unavailable'),
     });
 
-    const hasPendingReverseSplit = manualInput?.hasPendingReverseSplit ?? secFilingInfo?.hasPendingReverseSplit ?? null;
+    const hasPendingReverseSplit = secFilingInfo?.hasPendingReverseSplit ?? null;
     const reverseSplitDate = secFilingInfo?.reverseSplitDate;
-    const isReverseSplitFromSEC = manualInput?.hasPendingReverseSplit === undefined && secFilingInfo?.hasPendingReverseSplit !== undefined;
 
     items.push({
       id: 'pending_reverse_split',
@@ -381,17 +442,13 @@ export class ChecklistService {
       description: 'Reverse splits (8-K Item 5.03) often signal desperation to maintain listing.',
       value: hasPendingReverseSplit,
       displayValue: hasPendingReverseSplit !== null
-        ? (hasPendingReverseSplit
-            ? `Yes${reverseSplitDate ? ` (${reverseSplitDate})` : ''}`
-            : 'No')
-        : 'Not specified',
-      status: hasPendingReverseSplit === true ? 'danger' : (hasPendingReverseSplit === false ? 'safe' : 'manual'),
-      isManual: !isReverseSplitFromSEC,
+        ? (hasPendingReverseSplit ? `Yes${reverseSplitDate ? ` (${reverseSplitDate})` : ''}` : 'No')
+        : 'Unknown',
+      status: hasPendingReverseSplit === true ? 'danger' : (hasPendingReverseSplit === false ? 'safe' : 'unavailable'),
     });
 
-    const hasNasdaqDeficiency = manualInput?.hasNasdaqDeficiency ?? secFilingInfo?.hasNasdaqDeficiency ?? null;
+    const hasNasdaqDeficiency = secFilingInfo?.hasNasdaqDeficiency ?? null;
     const deficiencyDate = secFilingInfo?.deficiencyDate;
-    const isDeficiencyFromSEC = manualInput?.hasNasdaqDeficiency === undefined && secFilingInfo?.hasNasdaqDeficiency !== undefined;
 
     items.push({
       id: 'nasdaq_deficiency',
@@ -399,12 +456,9 @@ export class ChecklistService {
       description: 'Company has received compliance warning (8-K Item 3.01) from Nasdaq.',
       value: hasNasdaqDeficiency,
       displayValue: hasNasdaqDeficiency !== null
-        ? (hasNasdaqDeficiency
-            ? `Yes${deficiencyDate ? ` (${deficiencyDate})` : ''}`
-            : 'No')
-        : 'Not specified',
-      status: hasNasdaqDeficiency === true ? 'danger' : (hasNasdaqDeficiency === false ? 'safe' : 'manual'),
-      isManual: !isDeficiencyFromSEC,
+        ? (hasNasdaqDeficiency ? `Yes${deficiencyDate ? ` (${deficiencyDate})` : ''}` : 'No')
+        : 'Unknown',
+      status: hasNasdaqDeficiency === true ? 'danger' : (hasNasdaqDeficiency === false ? 'safe' : 'unavailable'),
     });
 
     return {
@@ -446,6 +500,26 @@ export class ChecklistService {
     return 'safe';
   }
 
+  private getFreeCashFlowStatus(fcf: number): ChecklistStatus {
+    if (fcf >= 0) return 'safe';
+    const absFcf = Math.abs(fcf);
+    if (absFcf > 500e6) return 'danger';
+    if (absFcf > 100e6) return 'warning';
+    return 'warning';
+  }
+
+  private getTotalCashStatus(cash: number): ChecklistStatus {
+    if (cash < 10e6) return 'danger';
+    if (cash < 50e6) return 'warning';
+    return 'safe';
+  }
+
+  private getRdRevenueStatus(ratio: number): ChecklistStatus {
+    if (ratio > 100) return 'danger';
+    if (ratio > 50) return 'warning';
+    return 'safe';
+  }
+
   private getPriceLevelStatus(price: number): ChecklistStatus {
     if (price < 1) return 'danger';
     if (price < 5) return 'warning';
@@ -462,7 +536,7 @@ export class ChecklistService {
     const statuses = items.map(i => i.status);
     if (statuses.includes('danger')) return 'danger';
     if (statuses.includes('warning')) return 'warning';
-    if (statuses.every(s => s === 'manual' || s === 'unavailable')) return 'manual';
+    if (statuses.every(s => s === 'unavailable')) return 'unavailable';
     return 'safe';
   }
 
@@ -470,20 +544,8 @@ export class ChecklistService {
     const statuses = categories.map(c => c.status);
     if (statuses.includes('danger')) return 'danger';
     if (statuses.includes('warning')) return 'warning';
-    if (statuses.every(s => s === 'manual' || s === 'unavailable')) return 'manual';
+    if (statuses.every(s => s === 'unavailable')) return 'unavailable';
     return 'safe';
-  }
-
-  private createManualItem(id: string, label: string, description: string): ChecklistItem {
-    return {
-      id,
-      label,
-      description,
-      value: null,
-      displayValue: 'Enter value',
-      status: 'manual',
-      isManual: true,
-    };
   }
 
   private createUnavailableItem(id: string, label: string, description: string): ChecklistItem {
@@ -494,7 +556,6 @@ export class ChecklistService {
       value: null,
       displayValue: 'Unavailable',
       status: 'unavailable',
-      isManual: false,
     };
   }
 }

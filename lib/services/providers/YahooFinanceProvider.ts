@@ -110,6 +110,27 @@ export class YahooFinanceProvider implements IFinanceProvider {
       cashRunwayMonths = totalCash / monthlyBurn;
     }
 
+    // Get R&D and revenue from fundamentalsTimeSeries (incomeStatementHistory is broken since Nov 2024)
+    let researchDevelopment: number | null = null;
+    let totalRevenue: number | null = null;
+    try {
+      const startDate = new Date();
+      startDate.setFullYear(startDate.getFullYear() - 2);
+      const timeSeries = await this.retry(() => this.yahooFinance.fundamentalsTimeSeries(symbol, {
+        period1: startDate,
+        type: 'annual',
+        module: 'all',
+      }));
+      // Get most recent annual data
+      if (Array.isArray(timeSeries) && timeSeries.length > 0) {
+        const latest = timeSeries[timeSeries.length - 1] as Record<string, unknown>;
+        researchDevelopment = (latest.researchAndDevelopment as number) ?? null;
+        totalRevenue = (latest.totalRevenue as number) ?? (latest.operatingRevenue as number) ?? null;
+      }
+    } catch (e) {
+      console.log(`[YahooFinance] Could not fetch fundamentalsTimeSeries for ${symbol}:`, e);
+    }
+
     const fundamentalData: FundamentalData = {
       symbol,
       insiderOwnership,
@@ -118,6 +139,8 @@ export class YahooFinanceProvider implements IFinanceProvider {
       totalDebt,
       freeCashFlow,
       cashRunwayMonths,
+      researchDevelopment,
+      totalRevenue,
     };
 
     console.log(`[YahooFinance] Data for ${symbol}:`, {
@@ -155,6 +178,26 @@ export class YahooFinanceProvider implements IFinanceProvider {
         cashRunwayMonths = totalCash / monthlyBurn;
       }
 
+      // Get R&D and revenue from fundamentalsTimeSeries
+      let researchDevelopment: number | null = null;
+      let totalRevenue: number | null = null;
+      try {
+        const startDate = new Date();
+        startDate.setFullYear(startDate.getFullYear() - 2);
+        const timeSeries = await this.yahooFinance.fundamentalsTimeSeries(symbol, {
+          period1: startDate,
+          type: 'annual',
+          module: 'all',
+        });
+        if (Array.isArray(timeSeries) && timeSeries.length > 0) {
+          const latest = timeSeries[timeSeries.length - 1] as Record<string, unknown>;
+          researchDevelopment = (latest.researchAndDevelopment as number) ?? null;
+          totalRevenue = (latest.totalRevenue as number) ?? (latest.operatingRevenue as number) ?? null;
+        }
+      } catch (e) {
+        console.log(`[YahooFinance] Could not fetch fundamentalsTimeSeries for ${symbol}`);
+      }
+
       return {
         symbol,
         insiderOwnership,
@@ -163,6 +206,8 @@ export class YahooFinanceProvider implements IFinanceProvider {
         totalDebt,
         freeCashFlow,
         cashRunwayMonths,
+        researchDevelopment,
+        totalRevenue,
       };
     } catch (error) {
       console.error(`[YahooFinance] Error fetching data for ${symbol}:`, error);
@@ -174,6 +219,8 @@ export class YahooFinanceProvider implements IFinanceProvider {
         totalDebt: null,
         freeCashFlow: null,
         cashRunwayMonths: null,
+        researchDevelopment: null,
+        totalRevenue: null,
       };
     }
   }

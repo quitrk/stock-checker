@@ -1,4 +1,4 @@
-export type ChecklistStatus = 'safe' | 'warning' | 'danger' | 'manual' | 'unavailable';
+export type ChecklistStatus = 'safe' | 'warning' | 'danger' | 'unavailable';
 
 export interface ChecklistItem {
   id: string;
@@ -12,7 +12,6 @@ export interface ChecklistItem {
     warning: string;
     danger: string;
   };
-  isManual: boolean;
 }
 
 export interface ChecklistCategory {
@@ -34,13 +33,4 @@ export interface ChecklistResult {
   overallStatus: ChecklistStatus;
   timestamp: string;
   errors: string[];
-}
-
-export interface ManualChecklistInput {
-  insiderOwnership?: number;
-  institutionalOwnership?: number;
-  hasRecentATM?: boolean;
-  hasPendingReverseSplit?: boolean;
-  hasNasdaqDeficiency?: boolean;
-  daysBelow1Dollar?: number;
 }

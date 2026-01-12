@@ -6,6 +6,8 @@ export interface FundamentalData {
   totalDebt: number | null;
   freeCashFlow: number | null;
   cashRunwayMonths: number | null;
+  researchDevelopment: number | null;
+  totalRevenue: number | null;
 }
 
 export interface MarketData {

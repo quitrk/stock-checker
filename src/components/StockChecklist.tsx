@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useToast } from '../contexts/ToastContext';
 import { ToastDuration } from './Toast';
 import { getStockChecklist } from '../api/checklistApi';
@@ -7,7 +7,6 @@ import type {
   ChecklistCategory,
   ChecklistItem,
   ChecklistStatus,
-  ManualChecklistInput,
 } from '../types';
 import './StockChecklist.css';
 
@@ -15,7 +14,6 @@ const STATUS_ICONS: Record<ChecklistStatus, string> = {
   safe: '\u2713',
   warning: '\u26A0',
   danger: '\u2717',
-  manual: '?',
   unavailable: '\u2014',
 };
 
@@ -27,24 +25,33 @@ function formatMarketCap(marketCap: number): string {
   return `$${marketCap.toLocaleString()}`;
 }
 
+function getSymbolFromUrl(): string {
+  const path = window.location.pathname;
+  const match = path.match(/^\/([A-Za-z]+)$/);
+  return match ? match[1].toUpperCase() : '';
+}
+
+function updateUrl(symbol: string) {
+  const newPath = symbol ? `/${symbol.toUpperCase()}` : '/';
+  if (window.location.pathname !== newPath) {
+    window.history.pushState({}, '', newPath);
+  }
+}
+
 export function StockChecklist() {
   const { showError, showWarning } = useToast();
-  const [symbol, setSymbol] = useState('');
+  const [symbol, setSymbol] = useState(getSymbolFromUrl);
   const [loading, setLoading] = useState(false);
   const [checklist, setChecklist] = useState<ChecklistResult | null>(null);
-  const [manualInput, setManualInput] = useState<ManualChecklistInput>({});
 
-  const handleSubmit = useCallback(async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!symbol.trim()) {
-      showWarning('Please enter a stock symbol', ToastDuration.Short);
-      return;
-    }
+  const fetchChecklist = useCallback(async (sym: string, refresh = false) => {
+    if (!sym.trim()) return;
 
     setLoading(true);
     try {
-      const result = await getStockChecklist(symbol.trim().toUpperCase(), manualInput);
+      const result = await getStockChecklist(sym.trim().toUpperCase(), refresh);
       setChecklist(result);
+      updateUrl(sym);
 
       if (result.errors.length > 0) {
         showWarning(`Some data unavailable: ${result.errors.join(', ')}`, ToastDuration.Long);
@@ -54,24 +61,47 @@ export function StockChecklist() {
     } finally {
       setLoading(false);
     }
-  }, [symbol, manualInput, showError, showWarning]);
+  }, [showError, showWarning]);
 
-  const handleManualInputChange = useCallback((field: keyof ManualChecklistInput, value: any) => {
-    setManualInput(prev => ({ ...prev, [field]: value }));
-  }, []);
-
-  const refreshChecklist = useCallback(async () => {
-    if (!checklist) return;
-    setLoading(true);
-    try {
-      const result = await getStockChecklist(checklist.symbol, manualInput);
-      setChecklist(result);
-    } catch (error) {
-      showError(error instanceof Error ? error.message : 'Failed to refresh checklist', ToastDuration.Medium);
-    } finally {
-      setLoading(false);
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!symbol.trim()) {
+      showWarning('Please enter a stock symbol', ToastDuration.Short);
+      return;
     }
-  }, [checklist, manualInput, showError]);
+    fetchChecklist(symbol);
+  }, [symbol, fetchChecklist, showWarning]);
+
+  // Load symbol from URL on mount
+  useEffect(() => {
+    const urlSymbol = getSymbolFromUrl();
+    if (urlSymbol) {
+      setSymbol(urlSymbol);
+      fetchChecklist(urlSymbol);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Handle browser back/forward
+  useEffect(() => {
+    const handlePopState = () => {
+      const urlSymbol = getSymbolFromUrl();
+      setSymbol(urlSymbol);
+      if (urlSymbol) {
+        fetchChecklist(urlSymbol);
+      } else {
+        setChecklist(null);
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [fetchChecklist]);
+
+  const refreshChecklist = useCallback(() => {
+    if (checklist) {
+      fetchChecklist(checklist.symbol, true); // Skip cache on refresh
+    }
+  }, [checklist, fetchChecklist]);
 
   return (
     <div className="stock-checklist">
@@ -116,12 +146,7 @@ export function StockChecklist() {
 
           <div className="categories-grid">
             {checklist.categories.map((category) => (
-              <CategoryCard
-                key={category.id}
-                category={category}
-                manualInput={manualInput}
-                onManualInputChange={handleManualInputChange}
-              />
+              <CategoryCard key={category.id} category={category} />
             ))}
           </div>
 
@@ -141,11 +166,9 @@ export function StockChecklist() {
 
 interface CategoryCardProps {
   category: ChecklistCategory;
-  manualInput: ManualChecklistInput;
-  onManualInputChange: (field: keyof ManualChecklistInput, value: any) => void;
 }
 
-function CategoryCard({ category, manualInput, onManualInputChange }: CategoryCardProps) {
+function CategoryCard({ category }: CategoryCardProps) {
   return (
     <div className={`category-card status-${category.status}`}>
       <div className="category-header">
@@ -158,12 +181,7 @@ function CategoryCard({ category, manualInput, onManualInputChange }: CategoryCa
 
       <div className="checklist-items">
         {category.items.map((item) => (
-          <ChecklistItemRow
-            key={item.id}
-            item={item}
-            manualInput={manualInput}
-            onManualInputChange={onManualInputChange}
-          />
+          <ChecklistItemRow key={item.id} item={item} />
         ))}
       </div>
     </div>
@@ -172,93 +190,9 @@ function CategoryCard({ category, manualInput, onManualInputChange }: CategoryCa
 
 interface ChecklistItemRowProps {
   item: ChecklistItem;
-  manualInput: ManualChecklistInput;
-  onManualInputChange: (field: keyof ManualChecklistInput, value: any) => void;
 }
 
-function ChecklistItemRow({ item, manualInput, onManualInputChange }: ChecklistItemRowProps) {
-  const renderManualInput = () => {
-    if (!item.isManual || item.status !== 'manual') return null;
-
-    switch (item.id) {
-      case 'insider_ownership':
-        return (
-          <input
-            type="number"
-            min="0"
-            max="100"
-            step="0.1"
-            placeholder="%"
-            className="manual-input"
-            value={manualInput.insiderOwnership ?? ''}
-            onChange={(e) => onManualInputChange('insiderOwnership', e.target.value ? parseFloat(e.target.value) : undefined)}
-          />
-        );
-      case 'institutional_ownership':
-        return (
-          <input
-            type="number"
-            min="0"
-            max="100"
-            step="0.1"
-            placeholder="%"
-            className="manual-input"
-            value={manualInput.institutionalOwnership ?? ''}
-            onChange={(e) => onManualInputChange('institutionalOwnership', e.target.value ? parseFloat(e.target.value) : undefined)}
-          />
-        );
-      case 'days_below_1':
-        return (
-          <input
-            type="number"
-            min="0"
-            placeholder="Days"
-            className="manual-input"
-            value={manualInput.daysBelow1Dollar ?? ''}
-            onChange={(e) => onManualInputChange('daysBelow1Dollar', e.target.value ? parseInt(e.target.value, 10) : undefined)}
-          />
-        );
-      case 'recent_atm':
-        return (
-          <select
-            className="manual-select"
-            value={manualInput.hasRecentATM === undefined ? '' : String(manualInput.hasRecentATM)}
-            onChange={(e) => onManualInputChange('hasRecentATM', e.target.value === '' ? undefined : e.target.value === 'true')}
-          >
-            <option value="">Select...</option>
-            <option value="false">No</option>
-            <option value="true">Yes</option>
-          </select>
-        );
-      case 'pending_reverse_split':
-        return (
-          <select
-            className="manual-select"
-            value={manualInput.hasPendingReverseSplit === undefined ? '' : String(manualInput.hasPendingReverseSplit)}
-            onChange={(e) => onManualInputChange('hasPendingReverseSplit', e.target.value === '' ? undefined : e.target.value === 'true')}
-          >
-            <option value="">Select...</option>
-            <option value="false">No</option>
-            <option value="true">Yes</option>
-          </select>
-        );
-      case 'nasdaq_deficiency':
-        return (
-          <select
-            className="manual-select"
-            value={manualInput.hasNasdaqDeficiency === undefined ? '' : String(manualInput.hasNasdaqDeficiency)}
-            onChange={(e) => onManualInputChange('hasNasdaqDeficiency', e.target.value === '' ? undefined : e.target.value === 'true')}
-          >
-            <option value="">Select...</option>
-            <option value="false">No</option>
-            <option value="true">Yes</option>
-          </select>
-        );
-      default:
-        return null;
-    }
-  };
-
+function ChecklistItemRow({ item }: ChecklistItemRowProps) {
   return (
     <div className={`checklist-item status-${item.status}`}>
       <div className="item-status">
@@ -278,11 +212,7 @@ function ChecklistItemRow({ item, manualInput, onManualInputChange }: ChecklistI
         )}
       </div>
       <div className="item-value">
-        {item.status === 'manual' ? (
-          renderManualInput()
-        ) : (
-          <span className={`value status-${item.status}`}>{item.displayValue}</span>
-        )}
+        <span className={`value status-${item.status}`}>{item.displayValue}</span>
       </div>
     </div>
   );
