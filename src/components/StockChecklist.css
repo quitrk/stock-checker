@@ -1,43 +1,108 @@
 .stock-checklist {
-  padding: 1.5rem;
-  max-width: 1200px;
+  padding: 1rem 1.5rem;
+  padding-top: 4rem;
+  max-width: 1600px;
   margin: 0 auto;
+  overflow-x: hidden;
 }
 
-.checklist-header {
-  margin-bottom: 2rem;
+/* App Header */
+.app-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 1.5rem;
+  background: var(--surface);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
-.checklist-header h1 {
-  font-size: 1.75rem;
-  font-weight: 700;
-  margin: 0 0 0.5rem 0;
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
 }
 
-.checklist-subtitle {
+.header-logo {
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  object-fit: contain;
+  background: #fff;
+}
+
+.header-company-name {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.header-price {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.header-market-cap {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.header-industry {
+  font-size: 0.8rem;
+  color: var(--text-tertiary, #666);
+}
+
+/* Loading Overlay */
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 999;
+}
+
+/* Empty State */
+.empty-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
   color: var(--text-secondary);
   font-size: 0.9rem;
+}
+
+.empty-state p {
   margin: 0;
 }
 
-/* Symbol Input Form */
 .symbol-form {
-  margin-bottom: 2rem;
+  margin: 0;
 }
 
 .symbol-input-group {
   display: flex;
-  gap: 0.5rem;
-  max-width: 360px;
+  gap: 0;
 }
 
 .symbol-input {
-  flex: 1;
-  padding: 0.5rem 0.75rem;
-  font-size: 0.875rem;
+  width: 100px;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.8rem;
   background: var(--surface);
   border: 1px solid var(--border-color);
-  border-radius: 6px;
+  border-radius: 4px 0 0 4px;
   color: var(--text-primary);
   text-transform: uppercase;
 }
@@ -47,16 +112,63 @@
   border-color: var(--primary);
 }
 
+.btn-split {
+  display: flex;
+  position: relative;
+}
+
 .stock-checklist .btn-primary {
-  padding: 0.5rem 1rem;
-  font-size: 0.875rem;
+  padding: 0.35rem 0.6rem;
+  font-size: 0.8rem;
   font-weight: 500;
   background: var(--primary);
   color: white;
   border: none;
-  border-radius: 6px;
+  border-radius: 0 4px 4px 0;
   cursor: pointer;
   transition: background 0.2s;
+}
+
+.stock-checklist .btn-primary.btn-dropdown-toggle {
+  padding: 0.35rem 0.5rem;
+  border-left: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 0 4px 4px 0;
+}
+
+.stock-checklist .btn-split .btn-primary:not(:last-child) {
+  border-radius: 0;
+}
+
+.dropdown-arrow {
+  font-size: 0.7rem;
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 4px;
+  background: var(--surface);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  z-index: 100;
+  min-width: 120px;
+}
+
+.dropdown-menu button {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8rem;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  text-align: left;
+  cursor: pointer;
+}
+
+.dropdown-menu button:hover {
+  background: var(--surface-hover, #333);
 }
 
 .stock-checklist .btn-primary:hover:not(:disabled) {
@@ -69,8 +181,8 @@
 }
 
 .btn-secondary {
-  padding: 0.5rem 1rem;
-  font-size: 0.875rem;
+  padding: 0.35rem 0.6rem;
+  font-size: 0.8rem;
   font-weight: 500;
   background: var(--surface);
   color: var(--text-primary);
@@ -84,79 +196,33 @@
   background: var(--surface-hover, #333);
 }
 
-/* Company Header */
-.company-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 1rem 1.5rem;
-  background: var(--surface);
-  border-radius: 8px;
-  margin-bottom: 1.5rem;
-  flex-wrap: wrap;
-}
-
-.company-title {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.company-title h2 {
-  font-size: 1.25rem;
-  font-weight: 700;
-  margin: 0;
-}
-
-.company-name {
-  color: var(--text-secondary);
-  font-size: 0.9rem;
-}
-
-.biotech-badge {
-  background: #6366f1;
-  color: white;
-  padding: 0.2rem 0.5rem;
-  border-radius: 4px;
-  font-size: 0.7rem;
-  font-weight: 600;
-  text-transform: uppercase;
-}
-
-.company-details {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.detail-separator {
-  color: var(--text-secondary);
-  opacity: 0.5;
-}
-
-.industry {
-  color: var(--text-secondary);
-  font-size: 0.85rem;
-}
-
-.price {
-  font-size: 1.1rem;
-  font-weight: 600;
-}
-
-.market-cap {
-  font-size: 0.9rem;
-  color: var(--text-secondary);
-  font-weight: 500;
-}
-
-/* Categories Grid */
-.categories-grid {
+/* Two-column Layout */
+.content-layout {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(480px, 1fr));
+  grid-template-columns: 1fr 480px;
   gap: 1.5rem;
   margin-bottom: 1.5rem;
+  max-width: 100%;
+}
+
+.content-main {
+  min-width: 0;
+}
+
+.content-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.content-sidebar > * {
+  margin-top: 0 !important;
+}
+
+/* Categories Grid - Masonry Layout */
+.categories-grid {
+  column-count: 2;
+  column-gap: 1.5rem;
 }
 
 /* Category Card */
@@ -165,6 +231,8 @@
   border-radius: 8px;
   padding: 1.25rem;
   border-left: 4px solid;
+  break-inside: avoid;
+  margin-bottom: 1.5rem;
 }
 
 .category-card.status-safe {
@@ -192,7 +260,7 @@
 
 .category-header h3 {
   margin: 0;
-  font-size: 1.1rem;
+  font-size: 1rem;
   font-weight: 600;
 }
 
@@ -295,12 +363,12 @@
 
 .item-label {
   font-weight: 600;
-  font-size: 0.9rem;
+  font-size: 0.825rem;
   margin-bottom: 0.25rem;
 }
 
 .item-description {
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   color: var(--text-secondary);
   margin-bottom: 0.5rem;
 }
@@ -339,7 +407,7 @@
 
 .item-value .value {
   font-weight: 600;
-  font-size: 0.9rem;
+  font-size: 0.825rem;
 }
 
 .item-value .value.status-safe {
@@ -381,34 +449,57 @@
   border-color: var(--primary);
 }
 
-/* Actions */
-.checklist-actions {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.last-updated {
-  color: var(--text-secondary);
-  font-size: 0.8rem;
-}
-
 /* Responsive */
+@media (max-width: 1200px) {
+  .content-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .content-sidebar {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr));
+  }
+}
+
 @media (max-width: 1024px) {
   .categories-grid {
+    column-count: 1;
+  }
+
+  .content-sidebar {
     grid-template-columns: 1fr;
   }
 }
 
 @media (max-width: 768px) {
-  .company-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.75rem;
+  .stock-checklist {
+    padding: 0.75rem;
+    padding-top: 3.5rem;
   }
 
-  .company-details {
+  .app-header {
     flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+  }
+
+  .header-left {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    min-width: 0;
+  }
+
+  .header-company-name {
+    display: none;
+  }
+
+  .header-right {
+    gap: 0.75rem;
+    font-size: 0.85rem;
+  }
+
+  .header-industry {
+    display: none;
   }
 
   .checklist-item {
@@ -419,5 +510,13 @@
     width: 100%;
     text-align: left;
     margin-top: 0.5rem;
+  }
+
+  .item-thresholds {
+    display: none;
+  }
+
+  .category-card {
+    padding: 1rem;
   }
 }

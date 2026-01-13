@@ -1,0 +1,151 @@
+.analyst-section {
+  background: var(--card-bg, #1a1a2e);
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-top: 1.5rem;
+}
+
+.analyst-section h3 {
+  margin: 0 0 1rem 0;
+  font-size: 1.1rem;
+  color: var(--text-primary, #fff);
+}
+
+.analyst-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.analyst-summary > div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.analyst-summary .label {
+  font-size: 0.75rem;
+  color: var(--text-secondary, #888);
+  text-transform: uppercase;
+}
+
+.analyst-summary .value {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-primary, #fff);
+}
+
+.target-price {
+  display: flex;
+  flex-direction: column;
+}
+
+.target-price .upside {
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.target-price .upside.positive {
+  color: var(--color-safe, #4ade80);
+}
+
+.target-price .upside.negative {
+  color: var(--color-danger, #f87171);
+}
+
+.recommendation .analyst-count {
+  font-size: 0.75rem;
+  color: var(--text-secondary, #888);
+}
+
+.recommendation-buy,
+.recommendation-strongbuy {
+  color: var(--color-safe, #4ade80) !important;
+}
+
+.recommendation-hold {
+  color: var(--color-warning, #fbbf24) !important;
+}
+
+.recommendation-sell,
+.recommendation-strongsell {
+  color: var(--color-danger, #f87171) !important;
+}
+
+.recent-ratings h4 {
+  font-size: 0.875rem;
+  color: var(--text-secondary, #888);
+  margin: 1rem 0 0.75rem 0;
+}
+
+.ratings-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.rating-item {
+  display: grid;
+  grid-template-columns: 1fr 70px 90px 75px;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--card-bg-secondary, rgba(255, 255, 255, 0.05));
+  border-radius: 4px;
+  font-size: 0.8rem;
+}
+
+.rating-firm {
+  color: var(--text-primary, #fff);
+  font-weight: 500;
+}
+
+.rating-action {
+  padding: 0.125rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  text-align: center;
+}
+
+.rating-action {
+  background: rgba(148, 163, 184, 0.2);
+  color: var(--text-secondary, #94a3b8);
+}
+
+.action-upgrade,
+.action-up {
+  background: rgba(74, 222, 128, 0.2);
+  color: var(--color-safe, #4ade80);
+}
+
+.action-downgrade,
+.action-down {
+  background: rgba(248, 113, 113, 0.2);
+  color: var(--color-danger, #f87171);
+}
+
+.rating-grade {
+  color: var(--text-secondary, #888);
+  text-align: center;
+}
+
+.rating-date {
+  color: var(--text-tertiary, #666);
+  font-size: 0.75rem;
+  text-align: right;
+}
+
+@media (max-width: 768px) {
+  .rating-item {
+    grid-template-columns: 1fr auto;
+    gap: 0.25rem;
+  }
+
+  .rating-action,
+  .rating-date {
+    display: none;
+  }
+}

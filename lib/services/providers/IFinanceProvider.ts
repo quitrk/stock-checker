@@ -1,4 +1,4 @@
-import type { FundamentalData, MarketData, StockData, HistoricalBar } from './types.js';
+import type { FundamentalData, MarketData, StockData, HistoricalBar, NewsItem, CalendarEvents, AnalystData } from './types.js';
 
 export interface IFinanceProvider {
   readonly providerName: string;
@@ -7,6 +7,9 @@ export interface IFinanceProvider {
   getMarketData(symbol: string): Promise<MarketData>;
   getFundamentalData(symbol: string): Promise<FundamentalData>;
   getHistoricalData(symbol: string, days?: number): Promise<HistoricalBar[]>;
+  getNews(symbol: string, count?: number): Promise<NewsItem[]>;
+  getCalendarEvents(symbol: string): Promise<CalendarEvents>;
+  getAnalystData(symbol: string): Promise<AnalystData>;
 }
 
 export type FinanceProviderType = 'yahoo';

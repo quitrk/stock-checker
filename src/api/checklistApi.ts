@@ -1,4 +1,4 @@
-import type { ChecklistResult } from '../types';
+import type { ChecklistResult } from '../../lib/types/index.js';
 
 const API_BASE = '/api';
 

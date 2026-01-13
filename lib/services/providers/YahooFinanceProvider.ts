@@ -3,7 +3,7 @@ import type { QuoteSummaryResult } from 'yahoo-finance2/modules/quoteSummary';
 import type { Quote } from 'yahoo-finance2/modules/quote';
 import type { IFinanceProvider } from './IFinanceProvider.js';
 import { ProviderRateLimitError } from './IFinanceProvider.js';
-import type { FundamentalData, MarketData, StockData, HistoricalBar } from './types.js';
+import type { FundamentalData, MarketData, StockData, HistoricalBar, NewsItem, CalendarEvents, AnalystData, AnalystRating } from './types.js';
 
 export class YahooFinanceProvider implements IFinanceProvider {
   readonly providerName = 'yahoo';
@@ -17,6 +17,15 @@ export class YahooFinanceProvider implements IFinanceProvider {
   constructor() {
     // Initialize yahoo-finance2 v3 with suppressed notices
     this.yahooFinance = new YahooFinance({ suppressNotices: ['yahooSurvey'] });
+  }
+
+  private parseDate(value: any): Date | null {
+    if (!value) return null;
+    const date = new Date(value);
+    const year = date.getFullYear();
+    // Validate it's a reasonable date (between 2000 and 2100)
+    if (isNaN(year) || year < 2000 || year > 2100) return null;
+    return date;
   }
 
   private async throttle(): Promise<void> {
@@ -94,6 +103,7 @@ export class YahooFinanceProvider implements IFinanceProvider {
       companyName: data.price?.longName ?? data.price?.shortName ?? symbol,
       industry,
       marketCap: data.price?.marketCap ?? 0,
+      website: data.assetProfile?.website ?? null,
     };
 
     const insiderOwnership = data.defaultKeyStatistics?.heldPercentInsiders ??
@@ -243,6 +253,7 @@ export class YahooFinanceProvider implements IFinanceProvider {
       companyName: quote.longName ?? quote.shortName ?? symbol,
       industry: quote.industry ?? 'Unknown',
       marketCap: quote.marketCap ?? 0,
+      website: null,
     };
   }
 
@@ -281,6 +292,132 @@ export class YahooFinanceProvider implements IFinanceProvider {
     } catch (error) {
       console.error(`[YahooFinance] Error fetching historical data for ${symbol}:`, error);
       return [];
+    }
+  }
+
+  async getNews(symbol: string, count: number = 5): Promise<NewsItem[]> {
+    console.log(`[YahooFinance] Fetching news for ${symbol}`);
+
+    try {
+      // Request more items since we'll filter by relatedTickers
+      const result = await this.retry(() => this.yahooFinance.search(symbol, {
+        newsCount: count * 4,
+        quotesCount: 0,
+      }));
+
+      // Filter to only news items that have this ticker in relatedTickers
+      const relevantNews = (result.news || []).filter((item: any) => {
+        const relatedTickers = item.relatedTickers || [];
+        return relatedTickers.includes(symbol) || relatedTickers.includes(symbol.toUpperCase());
+      });
+
+      const news: NewsItem[] = relevantNews.slice(0, count).map((item: any) => {
+        const date = this.parseDate(item.providerPublishTime);
+        return {
+          title: item.title || '',
+          publisher: item.publisher || 'Unknown',
+          link: item.link || '',
+          publishedAt: date?.toISOString() || new Date().toISOString(),
+        };
+      });
+
+      console.log(`[YahooFinance] Got ${news.length} relevant news items for ${symbol} (filtered from ${result.news?.length || 0})`);
+      return news;
+    } catch (error) {
+      console.error(`[YahooFinance] Error fetching news for ${symbol}:`, error);
+      return [];
+    }
+  }
+
+  async getCalendarEvents(symbol: string): Promise<CalendarEvents> {
+    console.log(`[YahooFinance] Fetching calendar events for ${symbol}`);
+
+    try {
+      const data = await this.retry(() => this.yahooFinance.quoteSummary(symbol, {
+        modules: ['calendarEvents'],
+      }));
+
+      const calendar = data.calendarEvents;
+      const earnings = calendar?.earnings;
+
+      return {
+        earningsDate: earnings?.earningsDate?.[0]
+          ? new Date(earnings.earningsDate[0]).toISOString().split('T')[0]
+          : null,
+        earningsDateEnd: earnings?.earningsDate?.[1]
+          ? new Date(earnings.earningsDate[1]).toISOString().split('T')[0]
+          : null,
+        exDividendDate: calendar?.exDividendDate
+          ? new Date(calendar.exDividendDate).toISOString().split('T')[0]
+          : null,
+        dividendDate: calendar?.dividendDate
+          ? new Date(calendar.dividendDate).toISOString().split('T')[0]
+          : null,
+      };
+    } catch (error) {
+      console.error(`[YahooFinance] Error fetching calendar events for ${symbol}:`, error);
+      return {
+        earningsDate: null,
+        earningsDateEnd: null,
+        exDividendDate: null,
+        dividendDate: null,
+      };
+    }
+  }
+
+  async getAnalystData(symbol: string): Promise<AnalystData> {
+    console.log(`[YahooFinance] Fetching analyst data for ${symbol}`);
+
+    try {
+      const data = await this.retry(() => this.yahooFinance.quoteSummary(symbol, {
+        modules: ['financialData', 'upgradeDowngradeHistory'],
+      }));
+
+      const financial = data.financialData;
+      const upgradeHistory = data.upgradeDowngradeHistory?.history || [];
+
+      // Get recent ratings (last 90 days)
+      const ninetyDaysAgo = Date.now() - (90 * 24 * 60 * 60 * 1000);
+
+      const recentRatings: AnalystRating[] = upgradeHistory
+        .filter((item: any) => {
+          const date = this.parseDate(item.epochGradeDate);
+          return date && date.getTime() > ninetyDaysAgo;
+        })
+        .slice(0, 10)
+        .map((item: any) => {
+          const date = this.parseDate(item.epochGradeDate);
+          return {
+            firm: item.firm || 'Unknown',
+            toGrade: item.toGrade || 'Unknown',
+            fromGrade: item.fromGrade || null,
+            action: item.action || 'Unknown',
+            date: date?.toISOString().split('T')[0] || '',
+          };
+        });
+
+      return {
+        targetPrice: financial?.targetMedianPrice ?? null,
+        targetPriceLow: financial?.targetLowPrice ?? null,
+        targetPriceHigh: financial?.targetHighPrice ?? null,
+        targetPriceMean: financial?.targetMeanPrice ?? null,
+        numberOfAnalysts: financial?.numberOfAnalystOpinions ?? null,
+        recommendationKey: financial?.recommendationKey ?? null,
+        recommendationMean: financial?.recommendationMean ?? null,
+        recentRatings,
+      };
+    } catch (error) {
+      console.error(`[YahooFinance] Error fetching analyst data for ${symbol}:`, error);
+      return {
+        targetPrice: null,
+        targetPriceLow: null,
+        targetPriceHigh: null,
+        targetPriceMean: null,
+        numberOfAnalysts: null,
+        recommendationKey: null,
+        recommendationMean: null,
+        recentRatings: [],
+      };
     }
   }
 }

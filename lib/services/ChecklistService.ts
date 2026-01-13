@@ -1,4 +1,4 @@
-import { YahooFinanceProvider, type FundamentalData, type MarketData } from './providers/index.js';
+import { YahooFinanceProvider, type FundamentalData, type MarketData, type NewsItem, type CalendarEvents, type AnalystData } from './providers/index.js';
 import { SECService, SECFilingInfo } from './SECService.js';
 import { getCached, setCache, cacheKey } from './CacheService.js';
 import type {
@@ -6,6 +6,9 @@ import type {
   ChecklistCategory,
   ChecklistItem,
   ChecklistStatus,
+  NewsItem as NewsItemType,
+  CalendarEvents as CalendarEventsType,
+  AnalystData as AnalystDataType,
 } from '../types/index.js';
 
 export class ChecklistService {
@@ -23,7 +26,8 @@ export class ChecklistService {
     // Check cache first (unless skipping)
     if (!skipCache) {
       const cached = await getCached<ChecklistResult>(cacheKey('checklist', upperSymbol));
-      if (cached) {
+      // Auto-refresh if cached data is missing new fields (news, analystData, calendarEvents)
+      if (cached && cached.news !== undefined) {
         return cached;
       }
     }
@@ -41,6 +45,12 @@ export class ChecklistService {
       console.log(`[ChecklistService] Stock data received for ${upperSymbol}`);
     } catch (error) {
       console.error(`[ChecklistService] Stock data error:`, error);
+      // If main data fetch fails, return cached data if available
+      const cached = await getCached<ChecklistResult>(cacheKey('checklist', upperSymbol));
+      if (cached) {
+        console.log(`[ChecklistService] Returning cached data due to fetch error`);
+        return cached;
+      }
       errors.push(`Stock data unavailable: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
 
@@ -60,16 +70,43 @@ export class ChecklistService {
       errors.push(`SEC filings unavailable: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
 
+    // Fetch news, calendar events, and analyst data in parallel
+    let news: NewsItemType[] = [];
+    let calendarEvents: CalendarEventsType | null = null;
+    let analystData: AnalystDataType | null = null;
+
+    const [newsResult, calendarResult, analystResult] = await Promise.allSettled([
+      this.financeProvider.getNews(upperSymbol, 5),
+      this.financeProvider.getCalendarEvents(upperSymbol),
+      this.financeProvider.getAnalystData(upperSymbol),
+    ]);
+
+    if (newsResult.status === 'fulfilled') {
+      news = newsResult.value;
+    }
+    if (calendarResult.status === 'fulfilled') {
+      calendarEvents = calendarResult.value;
+    }
+    if (analystResult.status === 'fulfilled') {
+      analystData = analystResult.value;
+    }
+
     const isBiotech = this.checkIfBiotech(marketData?.industry);
 
     const categories: ChecklistCategory[] = [
       this.buildVolumeAnalysis(marketData),
       this.buildFundamentalsCategory(fundamentalData),
       this.buildPriceAnalysis(marketData, daysBelow1Dollar),
-      this.buildRiskIndicators(secFilingInfo),
+      this.buildRiskIndicators(secFilingInfo, marketData?.price ?? 0),
     ];
 
     const overallStatus = this.calculateOverallStatus(categories);
+
+    // Generate logo URL using LogoKit (by stock ticker)
+    const logoKitToken = process.env.LOGOKIT_TOKEN;
+    const logoUrl = logoKitToken
+      ? `https://img.logokit.com/ticker/${upperSymbol}?token=${logoKitToken}`
+      : null;
 
     const result: ChecklistResult = {
       symbol: upperSymbol,
@@ -78,10 +115,14 @@ export class ChecklistService {
       isBiotech,
       price: marketData?.price || 0,
       marketCap: marketData?.marketCap || 0,
+      logoUrl,
       categories,
       overallStatus,
       timestamp: new Date().toISOString(),
       errors,
+      news,
+      calendarEvents,
+      analystData,
     };
 
     // Cache the result if no errors
@@ -416,7 +457,7 @@ export class ChecklistService {
     return consecutiveDays;
   }
 
-  private buildRiskIndicators(secFilingInfo: SECFilingInfo | null): ChecklistCategory {
+  private buildRiskIndicators(secFilingInfo: SECFilingInfo | null, price: number): ChecklistCategory {
     const items: ChecklistItem[] = [];
 
     const hasRecentATM = secFilingInfo?.hasRecentATM ?? null;
@@ -433,18 +474,22 @@ export class ChecklistService {
       status: hasRecentATM === true ? 'warning' : (hasRecentATM === false ? 'safe' : 'unavailable'),
     });
 
-    const hasPendingReverseSplit = secFilingInfo?.hasPendingReverseSplit ?? null;
-    const reverseSplitDate = secFilingInfo?.reverseSplitDate;
+    const hasRecentSplit = secFilingInfo?.hasPendingReverseSplit ?? null;
+    const splitDate = secFilingInfo?.reverseSplitDate;
+    // Only flag as reverse split (danger) if price is under $5 - high priced stocks do forward splits
+    const isLikelyReverseSplit = hasRecentSplit && price < 5;
 
     items.push({
       id: 'pending_reverse_split',
-      label: 'Pending Reverse Split',
-      description: 'Reverse splits (8-K Item 5.03) often signal desperation to maintain listing.',
-      value: hasPendingReverseSplit,
-      displayValue: hasPendingReverseSplit !== null
-        ? (hasPendingReverseSplit ? `Yes${reverseSplitDate ? ` (${reverseSplitDate})` : ''}` : 'No')
+      label: isLikelyReverseSplit ? 'Pending Reverse Split' : 'Recent Stock Split',
+      description: isLikelyReverseSplit
+        ? 'Reverse splits often signal desperation to maintain listing.'
+        : 'Stock split detected (8-K Item 5.03). Forward splits are typically positive.',
+      value: hasRecentSplit,
+      displayValue: hasRecentSplit !== null
+        ? (hasRecentSplit ? `Yes${splitDate ? ` (${splitDate})` : ''}` : 'No')
         : 'Unknown',
-      status: hasPendingReverseSplit === true ? 'danger' : (hasPendingReverseSplit === false ? 'safe' : 'unavailable'),
+      status: isLikelyReverseSplit ? 'danger' : (hasRecentSplit === false ? 'safe' : 'safe'),
     });
 
     const hasNasdaqDeficiency = secFilingInfo?.hasNasdaqDeficiency ?? null;

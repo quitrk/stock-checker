@@ -23,6 +23,7 @@ export interface MarketData {
   companyName: string;
   industry: string;
   marketCap: number;
+  website: string | null;
 }
 
 export interface StockData {
@@ -37,4 +38,37 @@ export interface HistoricalBar {
   low: number;
   close: number;
   volume: number;
+}
+
+export interface NewsItem {
+  title: string;
+  publisher: string;
+  link: string;
+  publishedAt: string;
+}
+
+export interface CalendarEvents {
+  earningsDate: string | null;
+  earningsDateEnd: string | null;
+  exDividendDate: string | null;
+  dividendDate: string | null;
+}
+
+export interface AnalystRating {
+  firm: string;
+  toGrade: string;
+  fromGrade: string | null;
+  action: string;
+  date: string;
+}
+
+export interface AnalystData {
+  targetPrice: number | null;
+  targetPriceLow: number | null;
+  targetPriceHigh: number | null;
+  targetPriceMean: number | null;
+  numberOfAnalysts: number | null;
+  recommendationKey: string | null;
+  recommendationMean: number | null;
+  recentRatings: AnalystRating[];
 }

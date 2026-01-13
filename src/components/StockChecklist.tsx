@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useToast } from '../contexts/ToastContext';
 import { ToastDuration } from './Toast';
 import { getStockChecklist } from '../api/checklistApi';
@@ -7,7 +7,10 @@ import type {
   ChecklistCategory,
   ChecklistItem,
   ChecklistStatus,
-} from '../types';
+} from '../../lib/types/index.js';
+import { AnalystSection } from './AnalystSection';
+import { CalendarSection } from './CalendarSection';
+import { NewsSection } from './NewsSection';
 import './StockChecklist.css';
 
 const STATUS_ICONS: Record<ChecklistStatus, string> = {
@@ -43,6 +46,27 @@ export function StockChecklist() {
   const [symbol, setSymbol] = useState(getSymbolFromUrl);
   const [loading, setLoading] = useState(false);
   const [checklist, setChecklist] = useState<ChecklistResult | null>(null);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setShowDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Focus input after loading completes
+  useEffect(() => {
+    if (!loading) {
+      inputRef.current?.focus();
+    }
+  }, [loading]);
 
   const fetchChecklist = useCallback(async (sym: string, refresh = false) => {
     if (!sym.trim()) return;
@@ -103,60 +127,109 @@ export function StockChecklist() {
     }
   }, [checklist, fetchChecklist]);
 
+  const handleRefresh = () => {
+    setShowDropdown(false);
+    refreshChecklist();
+  };
+
   return (
     <div className="stock-checklist">
-      <div className="checklist-header">
-        <h1>Stock Checker</h1>
-        <p className="checklist-subtitle">
-          Evaluate stocks for risk factors based on volume, fundamentals, price, and SEC filings
-        </p>
-      </div>
-
-      <form onSubmit={handleSubmit} className="symbol-form">
-        <div className="symbol-input-group">
-          <input
-            type="text"
-            value={symbol}
-            onChange={(e) => setSymbol(e.target.value.toUpperCase())}
-            placeholder="Enter symbol (e.g., AAPL)"
-            className="symbol-input"
-            disabled={loading}
-          />
-          <button type="submit" className="btn-primary" disabled={loading}>
-            {loading ? 'Analyzing...' : 'Analyze'}
-          </button>
+      <header className="app-header">
+        <div className="header-left">
+          {checklist?.logoUrl && (
+            <img
+              key={checklist.logoUrl}
+              src={checklist.logoUrl}
+              alt={`${checklist.companyName} logo`}
+              className="header-logo"
+              onError={(e) => { e.currentTarget.style.display = 'none'; }}
+            />
+          )}
+          <form onSubmit={handleSubmit} className="symbol-form">
+            <div className="symbol-input-group">
+              <input
+                ref={inputRef}
+                type="text"
+                value={symbol}
+                onChange={(e) => setSymbol(e.target.value.toUpperCase())}
+                placeholder="Symbol"
+                className="symbol-input"
+                disabled={loading}
+              />
+              <div className="btn-split" ref={dropdownRef}>
+                <button type="submit" className="btn-primary" disabled={loading}>
+                  {loading ? '...' : 'Go'}
+                </button>
+                {checklist && (
+                  <>
+                    <button
+                      type="button"
+                      className="btn-primary btn-dropdown-toggle"
+                      onClick={() => setShowDropdown(!showDropdown)}
+                      disabled={loading}
+                    >
+                      <span className="dropdown-arrow">&#9662;</span>
+                    </button>
+                    {showDropdown && (
+                      <div className="dropdown-menu">
+                        <button type="button" onClick={handleRefresh} disabled={loading}>
+                          Refresh data
+                        </button>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+          </form>
+          {checklist && (
+            <>
+              <span className="header-company-name">{checklist.companyName}</span>
+              <span className="header-industry">{checklist.industry}</span>
+            </>
+          )}
         </div>
-      </form>
+        {checklist && (
+          <div className="header-right">
+            <span className="header-price">${checklist.price.toFixed(2)}</span>
+            <span className="header-market-cap">{formatMarketCap(checklist.marketCap)}</span>
+          </div>
+        )}
+      </header>
+
+      {loading && <div className="loading-overlay" />}
+
+      {!checklist && !loading && (
+        <div className="empty-state">
+          <p>Enter a stock symbol to analyze risk factors, fundamentals, and SEC filings.</p>
+        </div>
+      )}
 
       {checklist && (
         <div className="checklist-results">
-          <div className="company-header">
-            <div className="company-title">
-              <h2>{checklist.symbol}</h2>
-              <span className="company-name">{checklist.companyName}</span>
-            </div>
-            <div className="company-details">
-              <span className="price">${checklist.price.toFixed(2)}</span>
-              <span className="detail-separator">•</span>
-              <span className="market-cap">{formatMarketCap(checklist.marketCap)}</span>
-              <span className="detail-separator">•</span>
-              <span className="industry">{checklist.industry}</span>
-            </div>
-          </div>
 
-          <div className="categories-grid">
-            {checklist.categories.map((category) => (
-              <CategoryCard key={category.id} category={category} />
-            ))}
-          </div>
+          <div className="content-layout">
+            <div className="content-main">
+              <div className="categories-grid">
+                {checklist.categories.map((category) => (
+                  <CategoryCard key={category.id} category={category} />
+                ))}
+              </div>
+            </div>
 
-          <div className="checklist-actions">
-            <button onClick={refreshChecklist} className="btn-secondary" disabled={loading}>
-              Refresh Analysis
-            </button>
-            <span className="last-updated">
-              Last updated: {new Date(checklist.timestamp).toLocaleTimeString()}
-            </span>
+            <div className="content-sidebar">
+              {checklist.analystData && (
+                <AnalystSection analystData={checklist.analystData} currentPrice={checklist.price} />
+              )}
+
+              {checklist.calendarEvents && (
+                <CalendarSection calendarEvents={checklist.calendarEvents} />
+              )}
+
+              {checklist.news && checklist.news.length > 0 && (
+                <NewsSection news={checklist.news} />
+              )}
+            </div>
           </div>
         </div>
       )}
