@@ -1,4 +1,4 @@
-import { YahooFinanceProvider, type FundamentalData, type MarketData, type NewsItem, type CalendarEvents, type AnalystData } from './providers/index.js';
+import { YahooFinanceProvider, type FundamentalData, type MarketData, type NewsItem, type CalendarEvents, type AnalystData, type HistoricalBar } from './providers/index.js';
 import { SECService, SECFilingInfo } from './SECService.js';
 import { getCached, setCache, cacheKey } from './CacheService.js';
 import type {
@@ -10,6 +10,13 @@ import type {
   CalendarEvents as CalendarEventsType,
   AnalystData as AnalystDataType,
 } from '../types/index.js';
+
+interface VolumeAnalysis {
+  medianVolume: number;        // Median daily volume (more robust than avg)
+  recentElevatedDays: number;  // Days with volume > 5x median
+  maxVolumeRatio: number;      // Highest volume ratio in period
+  maxVolumeDate: string | null; // Date of highest volume
+}
 
 export class ChecklistService {
   private financeProvider: YahooFinanceProvider;
@@ -54,13 +61,19 @@ export class ChecklistService {
       errors.push(`Stock data unavailable: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
 
-    if (marketData && marketData.price < 5) {
-      try {
-        daysBelow1Dollar = await this.calculateDaysBelow1Dollar(upperSymbol);
-      } catch (error) {
-        console.error(`[ChecklistService] Days below $1 calculation error:`, error);
-      }
+    // Fetch historical data once for multiple uses (days below $1, volume analysis)
+    let historicalBars: HistoricalBar[] = [];
+    try {
+      historicalBars = await this.financeProvider.getHistoricalData(upperSymbol, 90);
+    } catch (error) {
+      console.error(`[ChecklistService] Historical data error:`, error);
     }
+
+    if (marketData && marketData.price < 5) {
+      daysBelow1Dollar = this.calculateDaysBelow1Dollar(historicalBars);
+    }
+
+    const volumeAnalysis = this.analyzeHistoricalVolume(historicalBars);
 
     let secFilingInfo: SECFilingInfo | null = null;
     try {
@@ -94,7 +107,7 @@ export class ChecklistService {
     const isBiotech = this.checkIfBiotech(marketData?.industry);
 
     const categories: ChecklistCategory[] = [
-      this.buildVolumeAnalysis(marketData),
+      this.buildVolumeAnalysis(marketData, volumeAnalysis),
       this.buildFundamentalsCategory(fundamentalData),
       this.buildPriceAnalysis(marketData, daysBelow1Dollar),
       this.buildRiskIndicators(secFilingInfo, marketData?.price ?? 0),
@@ -140,45 +153,63 @@ export class ChecklistService {
     return biotechKeywords.some(keyword => industryLower.includes(keyword));
   }
 
-  private buildVolumeAnalysis(marketData: MarketData | null): ChecklistCategory {
+  private buildVolumeAnalysis(marketData: MarketData | null, volumeAnalysis: VolumeAnalysis): ChecklistCategory {
     const items: ChecklistItem[] = [];
 
-    if (marketData && marketData.avgVolume10Day > 0) {
-      const volumeRatio10 = marketData.volume / marketData.avgVolume10Day;
+    if (marketData && volumeAnalysis.medianVolume > 0) {
+      const volumeRatio = marketData.volume / volumeAnalysis.medianVolume;
       items.push({
-        id: 'volume_ratio_10d',
-        label: 'Volume vs 10-Day Avg',
-        description: 'Compare current volume to 10-day average. High spikes without news = red flag.',
-        value: volumeRatio10,
-        displayValue: `${volumeRatio10.toFixed(1)}x`,
-        status: this.getVolumeRatioStatus(volumeRatio10),
+        id: 'volume_vs_median',
+        label: 'Volume vs 90-Day Median',
+        description: 'Current volume compared to typical daily volume. High spike may indicate ongoing pump.',
+        value: volumeRatio,
+        displayValue: `${volumeRatio.toFixed(1)}x`,
+        status: this.getVolumeRatioStatus(volumeRatio),
         thresholds: {
-          safe: '1-3x',
-          warning: '5-10x',
+          safe: '< 5x',
+          warning: '5-20x',
           danger: '20x+',
         },
       });
     } else {
-      items.push(this.createUnavailableItem('volume_ratio_10d', 'Volume vs 10-Day Avg', 'Volume data unavailable'));
+      items.push(this.createUnavailableItem('volume_vs_median', 'Volume vs 90-Day Median', 'Volume data unavailable'));
     }
 
-    if (marketData && marketData.avgVolume90Day > 0) {
-      const volumeRatio90 = marketData.volume / marketData.avgVolume90Day;
+    // Elevated volume days (5x+ avg) in past 60 days - indicates recent pump activity
+    items.push({
+      id: 'elevated_volume_days',
+      label: 'Volume Spike Days (60d)',
+      description: 'Days with volume >= 5x average. Multiple spike days may indicate prior pump activity.',
+      value: volumeAnalysis.recentElevatedDays,
+      displayValue: `${volumeAnalysis.recentElevatedDays} days`,
+      status: this.getElevatedDaysStatus(volumeAnalysis.recentElevatedDays),
+      thresholds: {
+        safe: '0-1 days',
+        warning: '2-4 days',
+        danger: '5+ days',
+      },
+    });
+
+    // Max volume spike info
+    if (volumeAnalysis.maxVolumeRatio >= 5) {
+      let spikeDescription = 'Largest single-day volume spike.';
+      if (volumeAnalysis.maxVolumeDate) {
+        const daysAgo = Math.floor((Date.now() - new Date(volumeAnalysis.maxVolumeDate).getTime()) / (1000 * 60 * 60 * 24));
+        spikeDescription = daysAgo === 0 ? 'Peak volume was today.' : `Peak volume was ${daysAgo} day${daysAgo === 1 ? '' : 's'} ago.`;
+      }
       items.push({
-        id: 'volume_ratio_90d',
-        label: 'Volume vs 90-Day Avg',
-        description: 'Compare current volume to 90-day average. Sustained high volume = increased interest.',
-        value: volumeRatio90,
-        displayValue: `${volumeRatio90.toFixed(1)}x`,
-        status: this.getVolumeRatioStatus(volumeRatio90),
+        id: 'max_volume_spike',
+        label: 'Biggest Spike (60d)',
+        description: spikeDescription,
+        value: volumeAnalysis.maxVolumeRatio,
+        displayValue: `${volumeAnalysis.maxVolumeRatio.toFixed(1)}x`,
+        status: this.getVolumeRatioStatus(volumeAnalysis.maxVolumeRatio),
         thresholds: {
-          safe: '1-3x',
-          warning: '5-10x',
+          safe: '< 5x',
+          warning: '5-20x',
           danger: '20x+',
         },
       });
-    } else {
-      items.push(this.createUnavailableItem('volume_ratio_90d', 'Volume vs 90-Day Avg', 'Volume data unavailable'));
     }
 
     if (marketData) {
@@ -439,9 +470,7 @@ export class ChecklistService {
     };
   }
 
-  private async calculateDaysBelow1Dollar(symbol: string): Promise<number> {
-    const bars = await this.financeProvider.getHistoricalData(symbol, 60);
-
+  private calculateDaysBelow1Dollar(bars: HistoricalBar[]): number {
     if (bars.length === 0) return 0;
 
     let consecutiveDays = 0;
@@ -453,8 +482,42 @@ export class ChecklistService {
       }
     }
 
-    console.log(`[ChecklistService] ${symbol}: ${consecutiveDays} consecutive days below $1`);
     return consecutiveDays;
+  }
+
+  private analyzeHistoricalVolume(bars: HistoricalBar[]): VolumeAnalysis {
+    const result: VolumeAnalysis = {
+      medianVolume: 0,
+      recentElevatedDays: 0,
+      maxVolumeRatio: 0,
+      maxVolumeDate: null,
+    };
+
+    if (bars.length === 0) return result;
+
+    // Calculate median volume
+    const volumes = bars.map(b => b.volume).sort((a, b) => a - b);
+    const mid = Math.floor(volumes.length / 2);
+    result.medianVolume = volumes.length % 2 === 0
+      ? (volumes[mid - 1] + volumes[mid]) / 2
+      : volumes[mid];
+
+    if (result.medianVolume <= 0) return result;
+
+    const elevatedThreshold = 5; // 5x median = warning level
+
+    for (const bar of bars) {
+      const ratio = bar.volume / result.medianVolume;
+      if (ratio >= elevatedThreshold) {
+        result.recentElevatedDays++;
+      }
+      if (ratio > result.maxVolumeRatio) {
+        result.maxVolumeRatio = ratio;
+        result.maxVolumeDate = bar.date;
+      }
+    }
+
+    return result;
   }
 
   private buildRiskIndicators(secFilingInfo: SECFilingInfo | null, price: number): ChecklistCategory {
@@ -518,6 +581,12 @@ export class ChecklistService {
   private getVolumeRatioStatus(ratio: number): ChecklistStatus {
     if (ratio >= 20) return 'danger';
     if (ratio >= 5) return 'warning';
+    return 'safe';
+  }
+
+  private getElevatedDaysStatus(days: number): ChecklistStatus {
+    if (days >= 5) return 'danger';
+    if (days >= 2) return 'warning';
     return 'safe';
   }
 

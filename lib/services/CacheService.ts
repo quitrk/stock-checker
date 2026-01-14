@@ -1,6 +1,6 @@
 import { Redis } from '@upstash/redis';
 
-const CACHE_TTL_SECONDS = 12 * 60 * 60; // 12 hours
+const CACHE_TTL_SECONDS = 24 * 60 * 60; // 24 hours
 
 let redis: Redis | null = null;
 
