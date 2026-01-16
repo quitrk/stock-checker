@@ -29,6 +29,7 @@ export interface MarketData {
 export interface StockData {
   marketData: MarketData;
   fundamentalData: FundamentalData;
+  shortInterestData: ShortInterestData;
 }
 
 export interface HistoricalBar {
@@ -71,4 +72,12 @@ export interface AnalystData {
   recommendationKey: string | null;
   recommendationMean: number | null;
   recentRatings: AnalystRating[];
+}
+
+export interface ShortInterestData {
+  shortPercentOfFloat: number | null;    // % of float shares that are shorted
+  sharesShort: number | null;            // total shares shorted
+  shortRatio: number | null;             // days to cover
+  sharesShortPriorMonth: number | null;  // previous month for trend
+  dateShortInterest: string | null;      // date of the data
 }

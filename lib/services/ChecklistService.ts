@@ -1,4 +1,4 @@
-import { YahooFinanceProvider, type FundamentalData, type MarketData, type NewsItem, type CalendarEvents, type AnalystData, type HistoricalBar } from './providers/index.js';
+import { YahooFinanceProvider, type FundamentalData, type MarketData, type NewsItem, type CalendarEvents, type AnalystData, type HistoricalBar, type ShortInterestData } from './providers/index.js';
 import { SECService, SECFilingInfo } from './SECService.js';
 import { getCached, setCache, cacheKey } from './CacheService.js';
 import type {
@@ -9,6 +9,7 @@ import type {
   NewsItem as NewsItemType,
   CalendarEvents as CalendarEventsType,
   AnalystData as AnalystDataType,
+  ShortInterestData as ShortInterestDataType,
 } from '../types/index.js';
 
 interface VolumeAnalysis {
@@ -42,6 +43,7 @@ export class ChecklistService {
     const errors: string[] = [];
     let marketData: MarketData | null = null;
     let fundamentalData: FundamentalData | null = null;
+    let shortInterestData: ShortInterestData | null = null;
     let daysBelow1Dollar: number | null = null;
 
     try {
@@ -49,6 +51,7 @@ export class ChecklistService {
       const stockData = await this.financeProvider.getStockData(upperSymbol);
       marketData = stockData.marketData;
       fundamentalData = stockData.fundamentalData;
+      shortInterestData = stockData.shortInterestData;
       console.log(`[ChecklistService] Stock data received for ${upperSymbol}`);
     } catch (error) {
       console.error(`[ChecklistService] Stock data error:`, error);
@@ -110,6 +113,7 @@ export class ChecklistService {
       this.buildVolumeAnalysis(marketData, volumeAnalysis),
       this.buildFundamentalsCategory(fundamentalData),
       this.buildPriceAnalysis(marketData, daysBelow1Dollar),
+      this.buildShortInterestCategory(shortInterestData),
       this.buildRiskIndicators(secFilingInfo, marketData?.price ?? 0),
     ];
 
@@ -136,6 +140,7 @@ export class ChecklistService {
       news,
       calendarEvents,
       analystData,
+      shortInterestData,
     };
 
     // Cache the result if no errors
@@ -468,6 +473,141 @@ export class ChecklistService {
       items,
       status: this.getCategoryStatus(items),
     };
+  }
+
+  private buildShortInterestCategory(shortInterestData: ShortInterestData | null): ChecklistCategory {
+    const items: ChecklistItem[] = [];
+
+    // Calculate squeeze potential score (0-100)
+    const squeezeScore = this.calculateSqueezeScore(shortInterestData);
+    const squeezeLevel = this.getSqueezeLevel(squeezeScore);
+
+    items.push({
+      id: 'squeeze_potential',
+      label: 'Squeeze Potential',
+      description: 'Combined score based on short %, days to cover, and trend. Higher = shorts more vulnerable.',
+      value: squeezeScore,
+      displayValue: `${squeezeLevel} (${squeezeScore}/100)`,
+      status: this.getSqueezeStatus(squeezeScore),
+    });
+
+    // Short % of Float (informational)
+    if (shortInterestData?.shortPercentOfFloat != null) {
+      const shortPercent = shortInterestData.shortPercentOfFloat * 100;
+      items.push({
+        id: 'short_percent_float',
+        label: 'Short % of Float',
+        description: 'Percentage of tradeable shares currently shorted.',
+        value: shortPercent,
+        displayValue: `${shortPercent.toFixed(1)}%`,
+        status: 'safe',
+      });
+    }
+
+    // Days to Cover (informational)
+    if (shortInterestData?.shortRatio != null) {
+      items.push({
+        id: 'days_to_cover',
+        label: 'Days to Cover',
+        description: 'Days needed to cover all shorts based on avg volume.',
+        value: shortInterestData.shortRatio,
+        displayValue: `${shortInterestData.shortRatio.toFixed(1)} days`,
+        status: 'safe',
+      });
+    }
+
+    // Short Interest Trend (informational)
+    if (shortInterestData?.sharesShort != null && shortInterestData?.sharesShortPriorMonth != null) {
+      const current = shortInterestData.sharesShort;
+      const prior = shortInterestData.sharesShortPriorMonth;
+      const changePercent = prior > 0 ? ((current - prior) / prior) * 100 : 0;
+      const isIncreasing = changePercent > 0;
+
+      items.push({
+        id: 'short_interest_trend',
+        label: 'Short Interest Trend',
+        description: 'Month-over-month change in shares shorted.',
+        value: changePercent,
+        displayValue: `${isIncreasing ? '+' : ''}${changePercent.toFixed(1)}%`,
+        status: 'safe',
+      });
+    }
+
+    // Data date for context
+    if (shortInterestData?.dateShortInterest) {
+      items.push({
+        id: 'short_data_date',
+        label: 'Data As Of',
+        description: 'Short interest data is reported bi-monthly with a delay.',
+        value: shortInterestData.dateShortInterest,
+        displayValue: shortInterestData.dateShortInterest,
+        status: 'safe',
+      });
+    }
+
+    return {
+      id: 'short_interest',
+      name: 'Short Interest',
+      description: 'Short selling activity and squeeze potential',
+      items,
+      status: this.getSqueezeStatus(squeezeScore),
+    };
+  }
+
+  private calculateSqueezeScore(data: ShortInterestData | null): number {
+    if (!data) return 0;
+
+    let score = 0;
+
+    // Short % of float: 0-40 points
+    // 0% = 0pts, 10% = 20pts, 20% = 35pts, 30%+ = 40pts
+    if (data.shortPercentOfFloat != null) {
+      const shortPct = data.shortPercentOfFloat * 100;
+      if (shortPct >= 30) score += 40;
+      else if (shortPct >= 20) score += 35;
+      else if (shortPct >= 15) score += 28;
+      else if (shortPct >= 10) score += 20;
+      else if (shortPct >= 5) score += 10;
+      else score += Math.floor(shortPct * 2);
+    }
+
+    // Days to cover: 0-35 points
+    // <2 days = 0pts, 3-5 days = 15pts, 5-7 days = 25pts, 7+ days = 35pts
+    if (data.shortRatio != null) {
+      const dtc = data.shortRatio;
+      if (dtc >= 10) score += 35;
+      else if (dtc >= 7) score += 30;
+      else if (dtc >= 5) score += 25;
+      else if (dtc >= 3) score += 15;
+      else if (dtc >= 2) score += 8;
+      else score += Math.floor(dtc * 4);
+    }
+
+    // Short interest trend: 0-25 points
+    // Decreasing = 0pts, flat = 5pts, +10% = 15pts, +20%+ = 25pts
+    if (data.sharesShort != null && data.sharesShortPriorMonth != null && data.sharesShortPriorMonth > 0) {
+      const changePct = ((data.sharesShort - data.sharesShortPriorMonth) / data.sharesShortPriorMonth) * 100;
+      if (changePct >= 20) score += 25;
+      else if (changePct >= 10) score += 18;
+      else if (changePct >= 5) score += 12;
+      else if (changePct > 0) score += 5;
+      // Decreasing adds nothing
+    }
+
+    return Math.min(100, score);
+  }
+
+  private getSqueezeLevel(score: number): string {
+    if (score >= 66) return 'Elevated';
+    if (score >= 45) return 'High';
+    if (score >= 26) return 'Moderate';
+    return 'Low';
+  }
+
+  private getSqueezeStatus(score: number): ChecklistStatus {
+    // Warning = pay attention, volatility likely (not "danger")
+    if (score >= 26) return 'warning';
+    return 'safe';
   }
 
   private calculateDaysBelow1Dollar(bars: HistoricalBar[]): number {

@@ -3,7 +3,7 @@ import type { QuoteSummaryResult } from 'yahoo-finance2/modules/quoteSummary';
 import type { Quote } from 'yahoo-finance2/modules/quote';
 import type { IFinanceProvider } from './IFinanceProvider.js';
 import { ProviderRateLimitError } from './IFinanceProvider.js';
-import type { FundamentalData, MarketData, StockData, HistoricalBar, NewsItem, CalendarEvents, AnalystData, AnalystRating } from './types.js';
+import type { FundamentalData, MarketData, StockData, HistoricalBar, NewsItem, CalendarEvents, AnalystData, AnalystRating, ShortInterestData } from './types.js';
 
 export class YahooFinanceProvider implements IFinanceProvider {
   readonly providerName = 'yahoo';
@@ -153,14 +153,30 @@ export class YahooFinanceProvider implements IFinanceProvider {
       totalRevenue,
     };
 
+    // Extract short interest data from defaultKeyStatistics (already fetched)
+    let dateShortInterest: string | null = null;
+    if (data.defaultKeyStatistics?.dateShortInterest) {
+      const date = this.parseDate(data.defaultKeyStatistics.dateShortInterest);
+      dateShortInterest = date?.toISOString().split('T')[0] || null;
+    }
+
+    const shortInterestData: ShortInterestData = {
+      shortPercentOfFloat: data.defaultKeyStatistics?.shortPercentOfFloat ?? null,
+      sharesShort: data.defaultKeyStatistics?.sharesShort ?? null,
+      shortRatio: data.defaultKeyStatistics?.shortRatio ?? null,
+      sharesShortPriorMonth: data.defaultKeyStatistics?.sharesShortPriorMonth ?? null,
+      dateShortInterest,
+    };
+
     console.log(`[YahooFinance] Data for ${symbol}:`, {
       price: marketData.price,
       change: `${marketData.priceChangePercent.toFixed(2)}%`,
       insiderOwnership: insiderOwnership ? `${(insiderOwnership * 100).toFixed(1)}%` : 'N/A',
       totalCash: totalCash ? `$${(totalCash / 1e6).toFixed(1)}M` : 'N/A',
+      shortPercentOfFloat: shortInterestData.shortPercentOfFloat ? `${(shortInterestData.shortPercentOfFloat * 100).toFixed(1)}%` : 'N/A',
     });
 
-    const result = { marketData, fundamentalData };
+    const result = { marketData, fundamentalData, shortInterestData };
     this.cache.set(symbol, { data: result, timestamp: Date.now() });
 
     return result;

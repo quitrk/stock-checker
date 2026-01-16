@@ -55,6 +55,14 @@ export interface AnalystData {
   recentRatings: AnalystRating[];
 }
 
+export interface ShortInterestData {
+  shortPercentOfFloat: number | null;
+  sharesShort: number | null;
+  shortRatio: number | null;
+  sharesShortPriorMonth: number | null;
+  dateShortInterest: string | null;
+}
+
 export interface ChecklistResult {
   symbol: string;
   companyName: string;
@@ -70,4 +78,5 @@ export interface ChecklistResult {
   news: NewsItem[];
   calendarEvents: CalendarEvents | null;
   analystData: AnalystData | null;
+  shortInterestData: ShortInterestData | null;
 }
