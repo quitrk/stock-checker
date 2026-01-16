@@ -1,18 +1,19 @@
 import type { NewsItem } from '../../lib/types/index.js';
+import { Expander } from './Expander';
 import './NewsSection.css';
 
 interface NewsSectionProps {
   news: NewsItem[];
+  summary?: string;
 }
 
-export function NewsSection({ news }: NewsSectionProps) {
+export function NewsSection({ news, summary }: NewsSectionProps) {
   if (news.length === 0) {
     return null;
   }
 
   return (
-    <div className="news-section">
-      <h3>Recent News</h3>
+    <Expander title="Recent News" summary={summary} defaultExpanded={false} className="news-section">
       <div className="news-list">
         {news.map((item, index) => (
           <a
@@ -32,6 +33,6 @@ export function NewsSection({ news }: NewsSectionProps) {
           </a>
         ))}
       </div>
-    </div>
+    </Expander>
   );
 }

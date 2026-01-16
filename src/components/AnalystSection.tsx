@@ -1,4 +1,5 @@
 import type { AnalystData } from '../../lib/types/index.js';
+import { Expander } from './Expander';
 import './AnalystSection.css';
 
 interface AnalystSectionProps {
@@ -17,10 +18,20 @@ export function AnalystSection({ analystData, currentPrice }: AnalystSectionProp
     ? ((targetPrice - currentPrice) / currentPrice * 100).toFixed(1)
     : null;
 
-  return (
-    <div className="analyst-section">
-      <h3>Analyst Ratings</h3>
+  const summary = (
+    <>
+      {recommendationKey && (
+        <span className={`recommendation-${recommendationKey.toLowerCase().replace('_', '')}`}>
+          {recommendationKey.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
+        </span>
+      )}
+      {recommendationKey && targetPrice && ' · '}
+      {targetPrice && `$${targetPrice.toFixed(0)} target`}
+    </>
+  );
 
+  return (
+    <Expander title="Analyst Ratings" summary={summary} defaultExpanded={false} className="analyst-section">
       <div className="analyst-summary">
         {targetPrice && (
           <div className="target-price">
@@ -56,7 +67,9 @@ export function AnalystSection({ analystData, currentPrice }: AnalystSectionProp
         <div className="recent-ratings">
           <h4>Recent Rating Changes</h4>
           <div className="ratings-list">
-            {recentRatings.map((rating, index) => (
+            {recentRatings.filter((rating, index, arr) =>
+              arr.findIndex(r => r.firm === rating.firm) === index
+            ).map((rating, index) => (
               <div key={index} className="rating-item">
                 <span className="rating-firm">{rating.firm}</span>
                 <span className={`rating-action action-${rating.action.toLowerCase()}`}>
@@ -71,6 +84,6 @@ export function AnalystSection({ analystData, currentPrice }: AnalystSectionProp
           </div>
         </div>
       )}
-    </div>
+    </Expander>
   );
 }

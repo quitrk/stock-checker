@@ -1,4 +1,4 @@
-import { YahooFinanceProvider, type FundamentalData, type MarketData, type NewsItem, type CalendarEvents, type AnalystData, type HistoricalBar, type ShortInterestData } from './providers/index.js';
+import { YahooFinanceProvider, type FundamentalData, type MarketData, type HistoricalBar, type ShortInterestData } from './providers/index.js';
 import { SECService, SECFilingInfo } from './SECService.js';
 import { getCached, setCache, cacheKey } from './CacheService.js';
 import type {
@@ -9,7 +9,6 @@ import type {
   NewsItem as NewsItemType,
   CalendarEvents as CalendarEventsType,
   AnalystData as AnalystDataType,
-  ShortInterestData as ShortInterestDataType,
 } from '../types/index.js';
 
 interface VolumeAnalysis {
@@ -102,18 +101,53 @@ export class ChecklistService {
     }
     if (calendarResult.status === 'fulfilled') {
       calendarEvents = calendarResult.value;
+      if (calendarEvents) {
+        // Find the next upcoming event
+        const now = new Date();
+        now.setHours(0, 0, 0, 0);
+        const events: { label: string; date: Date }[] = [];
+        if (calendarEvents.earningsDate) {
+          const d = new Date(calendarEvents.earningsDate);
+          if (d >= now) events.push({ label: 'Earnings', date: d });
+        }
+        if (calendarEvents.exDividendDate) {
+          const d = new Date(calendarEvents.exDividendDate);
+          if (d >= now) events.push({ label: 'Ex-Div', date: d });
+        }
+        if (calendarEvents.dividendDate) {
+          const d = new Date(calendarEvents.dividendDate);
+          if (d >= now) events.push({ label: 'Dividend', date: d });
+        }
+        events.sort((a, b) => a.date.getTime() - b.date.getTime());
+        if (events.length > 0) {
+          const next = events[0];
+          calendarEvents.summary = `${next.label} ${next.date.toLocaleDateString()}`;
+        }
+      }
     }
     if (analystResult.status === 'fulfilled') {
       analystData = analystResult.value;
+      if (analystData) {
+        const parts: string[] = [];
+        if (analystData.recommendationKey) {
+          parts.push(analystData.recommendationKey.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '));
+        }
+        if (analystData.targetPrice) {
+          parts.push(`$${analystData.targetPrice.toFixed(0)} target`);
+        }
+        if (parts.length > 0) {
+          analystData.summary = parts.join(' · ');
+        }
+      }
     }
 
     const isBiotech = this.checkIfBiotech(marketData?.industry);
 
     const categories: ChecklistCategory[] = [
       this.buildVolumeAnalysis(marketData, volumeAnalysis),
-      this.buildFundamentalsCategory(fundamentalData),
       this.buildPriceAnalysis(marketData, daysBelow1Dollar),
       this.buildShortInterestCategory(shortInterestData),
+      this.buildFundamentalsCategory(fundamentalData),
       this.buildRiskIndicators(secFilingInfo, marketData?.price ?? 0),
     ];
 
@@ -138,6 +172,7 @@ export class ChecklistService {
       timestamp: new Date().toISOString(),
       errors,
       news,
+      newsSummary: news.length > 0 ? news[0].title : undefined,
       calendarEvents,
       analystData,
       shortInterestData,
@@ -242,6 +277,7 @@ export class ChecklistService {
       description: 'Unusual volume or price movement without news = potential pump & dump',
       items,
       status: this.getCategoryStatus(items),
+      summaryItemId: 'volume_vs_median',
     };
   }
 
@@ -255,18 +291,11 @@ export class ChecklistService {
       items.push({
         id: 'insider_ownership',
         label: 'Insider Ownership',
-        description: 'Higher insider ownership = management has skin in the game.',
+        description: 'Percentage of shares held by company insiders.',
         value: insiderOwnership,
         displayValue: `${insiderOwnership.toFixed(1)}%`,
-        status: this.getInsiderOwnershipStatus(insiderOwnership),
-        thresholds: {
-          safe: '>20%',
-          warning: '10-20%',
-          danger: '<10%',
-        },
+        status: 'safe',
       });
-    } else {
-      items.push(this.createUnavailableItem('insider_ownership', 'Insider Ownership', 'Data unavailable'));
     }
 
     const rawInstitutionalOwnership = fundamentalData?.institutionalOwnership;
@@ -410,6 +439,7 @@ export class ChecklistService {
       description: 'Ownership structure, cash position, and development stage',
       items,
       status: this.getCategoryStatus(items),
+      summaryItemId: 'cash_runway',
     };
   }
 
@@ -428,8 +458,8 @@ export class ChecklistService {
         displayValue: `$${marketData.price.toFixed(2)}`,
         status: this.getPriceLevelStatus(marketData.price),
         thresholds: {
-          safe: '>$5',
-          warning: '$1-$5',
+          safe: '>$2',
+          warning: '$1-$2',
           danger: '<$1',
         },
       });
@@ -472,6 +502,7 @@ export class ChecklistService {
       description: 'Price level and delisting risk assessment',
       items,
       status: this.getCategoryStatus(items),
+      summaryItemId: '52_week_position',
     };
   }
 
@@ -480,14 +511,13 @@ export class ChecklistService {
 
     // Calculate squeeze potential score (0-100)
     const squeezeScore = this.calculateSqueezeScore(shortInterestData);
-    const squeezeLevel = this.getSqueezeLevel(squeezeScore);
 
     items.push({
-      id: 'squeeze_potential',
-      label: 'Squeeze Potential',
+      id: 'squeeze_score',
+      label: 'Squeeze Score',
       description: 'Combined score based on short %, days to cover, and trend. Higher = shorts more vulnerable.',
       value: squeezeScore,
-      displayValue: `${squeezeLevel} (${squeezeScore}/100)`,
+      displayValue: `${squeezeScore}%`,
       status: this.getSqueezeStatus(squeezeScore),
     });
 
@@ -551,6 +581,7 @@ export class ChecklistService {
       description: 'Short selling activity and squeeze potential',
       items,
       status: this.getSqueezeStatus(squeezeScore),
+      summaryItemId: 'squeeze_score',
     };
   }
 
@@ -595,13 +626,6 @@ export class ChecklistService {
     }
 
     return Math.min(100, score);
-  }
-
-  private getSqueezeLevel(score: number): string {
-    if (score >= 66) return 'Elevated';
-    if (score >= 45) return 'High';
-    if (score >= 26) return 'Moderate';
-    return 'Low';
   }
 
   private getSqueezeStatus(score: number): ChecklistStatus {
@@ -710,8 +734,8 @@ export class ChecklistService {
     });
 
     return {
-      id: 'risk_indicators',
-      name: 'Risk Indicators',
+      id: 'dilution_compliance',
+      name: 'Dilution & Compliance',
       description: 'Corporate actions and compliance status (auto-detected from SEC filings)',
       items,
       status: this.getCategoryStatus(items),
@@ -733,12 +757,6 @@ export class ChecklistService {
   private getPriceChangeStatus(changePercent: number): ChecklistStatus {
     if (changePercent >= 50) return 'danger';
     if (changePercent >= 20) return 'warning';
-    return 'safe';
-  }
-
-  private getInsiderOwnershipStatus(percent: number): ChecklistStatus {
-    if (percent < 10) return 'danger';
-    if (percent < 20) return 'warning';
     return 'safe';
   }
 
@@ -776,7 +794,7 @@ export class ChecklistService {
 
   private getPriceLevelStatus(price: number): ChecklistStatus {
     if (price < 1) return 'danger';
-    if (price < 5) return 'warning';
+    if (price < 2) return 'warning';
     return 'safe';
   }
 

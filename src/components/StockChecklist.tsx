@@ -11,6 +11,7 @@ import type {
 import { AnalystSection } from './AnalystSection';
 import { CalendarSection } from './CalendarSection';
 import { NewsSection } from './NewsSection';
+import { Expander } from './Expander';
 import './StockChecklist.css';
 
 const STATUS_ICONS: Record<ChecklistStatus, string> = {
@@ -211,9 +212,16 @@ export function StockChecklist() {
           <div className="content-layout">
             <div className="content-main">
               <div className="categories-grid">
-                {checklist.categories.map((category) => (
-                  <CategoryCard key={category.id} category={category} />
-                ))}
+                <div className="categories-column">
+                  {checklist.categories.slice(0, Math.ceil(checklist.categories.length / 2)).map((category) => (
+                    <CategoryCard key={category.id} category={category} />
+                  ))}
+                </div>
+                <div className="categories-column">
+                  {checklist.categories.slice(Math.ceil(checklist.categories.length / 2)).map((category) => (
+                    <CategoryCard key={category.id} category={category} />
+                  ))}
+                </div>
               </div>
             </div>
 
@@ -227,7 +235,7 @@ export function StockChecklist() {
               )}
 
               {checklist.news && checklist.news.length > 0 && (
-                <NewsSection news={checklist.news} />
+                <NewsSection news={checklist.news} summary={checklist.newsSummary} />
               )}
             </div>
           </div>
@@ -242,22 +250,37 @@ interface CategoryCardProps {
 }
 
 function CategoryCard({ category }: CategoryCardProps) {
+  const allGreen = category.status === 'safe' || category.status === 'unavailable';
+
+  const summaryItem = category.summaryItemId
+    ? category.items.find(i => i.id === category.summaryItemId)
+    : undefined;
+
+  const summary = summaryItem && summaryItem.status !== 'unavailable' ? (
+    <span className={`summary-item status-${summaryItem.status}`}>
+      {summaryItem.label}: {summaryItem.displayValue}
+    </span>
+  ) : undefined;
+
   return (
-    <div className={`category-card status-${category.status}`}>
-      <div className="category-header">
-        <h3>{category.name}</h3>
+    <Expander
+      title={category.name}
+      defaultExpanded={!allGreen}
+      summary={summary}
+      headerRight={
         <span className={`category-status status-${category.status}`}>
           {STATUS_ICONS[category.status]}
         </span>
-      </div>
+      }
+      className={`category-card status-${category.status}`}
+    >
       <p className="category-description">{category.description}</p>
-
       <div className="checklist-items">
         {category.items.map((item) => (
           <ChecklistItemRow key={item.id} item={item} />
         ))}
       </div>
-    </div>
+    </Expander>
   );
 }
 

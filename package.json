@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@upstash/redis": "^1.36.1",
+    "@vercel/analytics": "^1.6.1",
     "dotenv": "^17.2.3",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",

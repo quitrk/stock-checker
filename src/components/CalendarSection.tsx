@@ -1,4 +1,5 @@
 import type { CalendarEvents } from '../../lib/types/index.js';
+import { Expander } from './Expander';
 import './CalendarSection.css';
 
 interface CalendarSectionProps {
@@ -26,8 +27,7 @@ export function CalendarSection({ calendarEvents }: CalendarSectionProps) {
   }
 
   return (
-    <div className="calendar-section">
-      <h3>Upcoming Events</h3>
+    <Expander title="Upcoming Events" summary={calendarEvents.summary} defaultExpanded={false} className="calendar-section">
       <div className="calendar-events">
         {futureEarnings && (
           <div className="calendar-event">
@@ -53,6 +53,6 @@ export function CalendarSection({ calendarEvents }: CalendarSectionProps) {
           </div>
         )}
       </div>
-    </div>
+    </Expander>
   );
 }

@@ -31,4 +31,13 @@ Thumbs.db
 
 # TypeScript
 *.tsbuildinfo
-.vercel
+
+# Compiled output in source directories
+api/**/*.js
+api/**/*.d.ts
+lib/**/*.js
+lib/**/*.d.ts
+server.js
+server.d.ts
+vite.config.js
+vite.config.d.ts

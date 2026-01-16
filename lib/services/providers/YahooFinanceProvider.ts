@@ -164,7 +164,7 @@ export class YahooFinanceProvider implements IFinanceProvider {
       shortPercentOfFloat: data.defaultKeyStatistics?.shortPercentOfFloat ?? null,
       sharesShort: data.defaultKeyStatistics?.sharesShort ?? null,
       shortRatio: data.defaultKeyStatistics?.shortRatio ?? null,
-      sharesShortPriorMonth: data.defaultKeyStatistics?.sharesShortPriorMonth ?? null,
+      sharesShortPriorMonth: (data.defaultKeyStatistics?.sharesShortPriorMonth as number | undefined) ?? null,
       dateShortInterest,
     };
 
