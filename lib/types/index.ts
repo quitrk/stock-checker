@@ -20,6 +20,7 @@ export interface ChecklistCategory {
   description: string;
   items: ChecklistItem[];
   status: ChecklistStatus;
+  summaryItemId?: string;
 }
 
 export interface NewsItem {
@@ -34,6 +35,7 @@ export interface CalendarEvents {
   earningsDateEnd: string | null;
   exDividendDate: string | null;
   dividendDate: string | null;
+  summary?: string;
 }
 
 export interface AnalystRating {
@@ -53,6 +55,7 @@ export interface AnalystData {
   recommendationKey: string | null;
   recommendationMean: number | null;
   recentRatings: AnalystRating[];
+  summary?: string;
 }
 
 export interface ShortInterestData {
@@ -76,6 +79,7 @@ export interface ChecklistResult {
   timestamp: string;
   errors: string[];
   news: NewsItem[];
+  newsSummary?: string;
   calendarEvents: CalendarEvents | null;
   analystData: AnalystData | null;
   shortInterestData: ShortInterestData | null;

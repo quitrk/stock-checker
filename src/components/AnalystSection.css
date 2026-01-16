@@ -1,14 +1,5 @@
 .analyst-section {
   background: var(--card-bg, #1a1a2e);
-  border-radius: 8px;
-  padding: 1.5rem;
-  margin-top: 1.5rem;
-}
-
-.analyst-section h3 {
-  margin: 0 0 1rem 0;
-  font-size: 1.1rem;
-  color: var(--text-primary, #fff);
 }
 
 .analyst-summary {
@@ -140,12 +131,11 @@
 
 @media (max-width: 768px) {
   .rating-item {
-    grid-template-columns: 1fr auto;
+    grid-template-columns: 1fr auto auto;
     gap: 0.25rem;
   }
 
-  .rating-action,
-  .rating-date {
+  .rating-action {
     display: none;
   }
 }

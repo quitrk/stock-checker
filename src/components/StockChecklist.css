@@ -219,20 +219,22 @@
   margin-top: 0 !important;
 }
 
-/* Categories Grid - Masonry Layout */
+/* Categories Grid */
 .categories-grid {
-  column-count: 2;
-  column-gap: 1.5rem;
+  display: flex;
+  gap: 1.5rem;
+}
+
+.categories-column {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
 }
 
 /* Category Card */
 .category-card {
-  background: var(--surface);
-  border-radius: 8px;
-  padding: 1.25rem;
   border-left: 4px solid;
-  break-inside: avoid;
-  margin-bottom: 1.5rem;
 }
 
 .category-card.status-safe {
@@ -251,18 +253,6 @@
   border-left-color: #6366f1;
 }
 
-.category-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 0.5rem;
-}
-
-.category-header h3 {
-  margin: 0;
-  font-size: 1rem;
-  font-weight: 600;
-}
 
 .category-status {
   width: 28px;
@@ -297,7 +287,7 @@
 .category-description {
   color: var(--text-secondary);
   font-size: 0.85rem;
-  margin: 0 0 1rem 0;
+  margin: 0 0 0.5rem 0;
 }
 
 /* Checklist Items */
@@ -463,7 +453,7 @@
 
 @media (max-width: 1024px) {
   .categories-grid {
-    column-count: 1;
+    flex-direction: column;
   }
 
   .content-sidebar {
