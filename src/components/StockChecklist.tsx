@@ -12,6 +12,7 @@ import { AnalystSection } from './AnalystSection';
 import { CalendarSection } from './CalendarSection';
 import { NewsSection } from './NewsSection';
 import { Expander } from './Expander';
+import { AuthButton } from './AuthButton';
 import './StockChecklist.css';
 
 const STATUS_ICONS: Record<ChecklistStatus, string> = {
@@ -196,6 +197,7 @@ export function StockChecklist() {
             <span className="header-market-cap">{formatMarketCap(checklist.marketCap)}</span>
           </div>
         )}
+        <AuthButton />
       </header>
 
       {loading && <div className="loading-overlay" />}

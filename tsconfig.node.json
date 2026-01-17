@@ -9,5 +9,5 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true
   },
-  "include": ["vite.config.ts", "server.ts", "api/**/*.ts", "lib/**/*.ts"]
+  "include": ["vite.config.ts", "server.ts", "dev.ts", "api/**/*.ts", "lib/**/*.ts"]
 }
