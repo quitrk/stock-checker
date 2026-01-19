@@ -7,6 +7,7 @@
     }
   },
   "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/[[...route]]" },
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ]
 }
