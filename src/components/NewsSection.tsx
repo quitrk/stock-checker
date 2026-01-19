@@ -13,7 +13,7 @@ export function NewsSection({ news, summary }: NewsSectionProps) {
   }
 
   return (
-    <Expander title="Recent News" summary={summary} defaultExpanded={false} className="news-section">
+    <Expander title="Recent News" summary={summary} defaultExpanded={true} className="news-section">
       <div className="news-list">
         {news.map((item, index) => (
           <a

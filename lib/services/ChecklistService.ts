@@ -141,8 +141,6 @@ export class ChecklistService {
       }
     }
 
-    const isBiotech = this.checkIfBiotech(marketData?.industry);
-
     const categories: ChecklistCategory[] = [
       this.buildVolumeAnalysis(marketData, volumeAnalysis),
       this.buildPriceAnalysis(marketData, daysBelow1Dollar),
@@ -163,8 +161,9 @@ export class ChecklistService {
       symbol: upperSymbol,
       companyName: marketData?.companyName || upperSymbol,
       industry: marketData?.industry || 'Unknown',
-      isBiotech,
       price: marketData?.price || 0,
+      priceChange: marketData?.priceChange || 0,
+      priceChangePercent: marketData?.priceChangePercent || 0,
       marketCap: marketData?.marketCap || 0,
       logoUrl,
       categories,
@@ -184,13 +183,6 @@ export class ChecklistService {
     }
 
     return result;
-  }
-
-  private checkIfBiotech(industry: string | null | undefined): boolean {
-    if (!industry) return false;
-    const industryLower = industry.toLowerCase();
-    const biotechKeywords = ['biotech', 'pharmaceutical', 'drug', 'biopharmaceutical', 'life science'];
-    return biotechKeywords.some(keyword => industryLower.includes(keyword));
   }
 
   private buildVolumeAnalysis(marketData: MarketData | null, volumeAnalysis: VolumeAnalysis): ChecklistCategory {

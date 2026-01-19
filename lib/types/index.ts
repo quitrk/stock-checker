@@ -70,8 +70,9 @@ export interface ChecklistResult {
   symbol: string;
   companyName: string;
   industry: string;
-  isBiotech: boolean;
   price: number;
+  priceChange: number;
+  priceChangePercent: number;
   marketCap: number;
   logoUrl: string | null;
   categories: ChecklistCategory[];

@@ -1,0 +1,103 @@
+.add-to-watchlist {
+  position: relative;
+}
+
+.watchlist-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 4px;
+  min-width: 200px;
+  background: var(--surface);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  z-index: 1001;
+}
+
+.watchlist-empty {
+  padding: 1rem;
+  text-align: center;
+}
+
+.watchlist-empty p {
+  margin: 0 0 0.75rem 0;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+
+.watchlist-list {
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.watchlist-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  font-size: 0.85rem;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  text-align: left;
+  cursor: pointer;
+}
+
+.watchlist-item:hover {
+  background: var(--surface-hover, #333);
+}
+
+.watchlist-item:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.watchlist-name {
+  flex: 1;
+}
+
+.watchlist-item.in-watchlist {
+  color: #10b981;
+}
+
+.watchlist-check {
+  font-size: 0.9rem;
+  color: #10b981;
+}
+
+.watchlist-create-btn {
+  width: 100%;
+  justify-content: flex-start;
+  border-top: 1px solid var(--border-color);
+  border-radius: 0;
+}
+
+.watchlist-create-form {
+  padding: 0.75rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.watchlist-create-form input {
+  width: 100%;
+  padding: 0.5rem;
+  font-size: 0.85rem;
+  background: var(--background);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-primary);
+  margin-bottom: 0.5rem;
+}
+
+.watchlist-create-form input:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+.create-actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}

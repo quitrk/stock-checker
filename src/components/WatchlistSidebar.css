@@ -1,0 +1,207 @@
+.watchlist-sidebar {
+  position: fixed;
+  top: 60px;
+  left: 0;
+  bottom: 0;
+  width: 360px;
+  background: #161618;
+  border-right: 1px solid var(--border-color);
+  z-index: 900;
+  transform: translateX(-100%);
+  transition: transform 0.2s ease;
+}
+
+.watchlist-sidebar.open {
+  transform: translateX(0);
+  padding-top: 3rem;
+}
+
+.sidebar-toggle {
+  position: fixed;
+  top: 80px;
+  left: 1.5rem;
+  width: 32px;
+  height: 32px;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 1.1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 901;
+}
+
+.sidebar-toggle:hover {
+  color: var(--text-primary);
+}
+
+.sidebar-login,
+.sidebar-empty {
+  padding: 1.5rem 1rem;
+  text-align: center;
+}
+
+.sidebar-login p,
+.sidebar-empty p {
+  margin: 0 0 0.75rem 0;
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+}
+
+
+.sidebar-content {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.watchlist-group {
+  border-bottom: 1px solid var(--border-color);
+}
+
+.watchlist-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  font-size: 1rem;
+  background: none;
+  color: var(--text-primary);
+  cursor: pointer;
+  user-select: none;
+}
+
+.watchlist-header:hover {
+  background: var(--surface-hover, #333);
+}
+
+.watchlist-header .expand-icon {
+  font-size: 0.6rem;
+  color: var(--text-secondary);
+}
+
+.watchlist-header .name {
+  flex: 1;
+  font-weight: 500;
+}
+
+
+.watchlist-stocks {
+  background: var(--background);
+}
+
+.watchlist-stocks .loading,
+.watchlist-stocks .empty {
+  padding: 0.75rem 1rem;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.stock-row {
+  display: flex;
+  align-items: center;
+}
+
+.stock-row .stock-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1rem 0.6rem 1.5rem;
+  font-size: 0.95rem;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  text-align: left;
+  cursor: pointer;
+}
+
+.stock-row .stock-btn:hover {
+  background: var(--surface-hover, #333);
+}
+
+.stock-row .symbol {
+  font-weight: 600;
+  min-width: 50px;
+}
+
+.stock-row .price {
+  flex: 1;
+  color: var(--text-secondary);
+}
+
+.stock-row .change {
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.stock-row .change.up {
+  color: #10b981;
+}
+
+.stock-row .change.down {
+  color: #ef4444;
+}
+
+.stock-row .remove-btn {
+  padding: 0.75rem 1rem;
+  font-size: 1.4rem;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.stock-row .remove-btn:hover {
+  color: #ef4444;
+}
+
+.add-btn {
+  width: 100%;
+  justify-content: flex-start;
+}
+
+.create-form {
+  padding: 0.75rem;
+}
+
+.create-form input {
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  font-size: 1rem;
+  background: var(--background);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-primary);
+  margin-bottom: 0.5rem;
+}
+
+.create-form input:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+.form-actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+@media (max-width: 768px) {
+  .watchlist-sidebar {
+    top: 52px;
+  }
+
+  .watchlist-sidebar.open {
+    width: 100%;
+  }
+
+  .sidebar-toggle {
+    top: 70px;
+    left: 0.75rem;
+    font-size: 1.4rem;
+  }
+}

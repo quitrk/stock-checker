@@ -57,7 +57,7 @@ export function Toast({ toast, onRemove }: ToastProps) {
         }}
         aria-label="Close notification"
       >
-        \u2715
+        {'\u2715'}
       </button>
     </div>
   );

@@ -273,6 +273,39 @@ export class YahooFinanceProvider implements IFinanceProvider {
     };
   }
 
+  async getMultipleQuotes(symbols: string[]): Promise<Map<string, MarketData>> {
+    if (symbols.length === 0) return new Map();
+
+    console.log(`[YahooFinance] Fetching batch quotes for ${symbols.length} symbols`);
+
+    const quotes = await this.retry(() => this.yahooFinance.quote(symbols));
+    const results = new Map<string, MarketData>();
+
+    const quotesArray = Array.isArray(quotes) ? quotes : [quotes];
+
+    for (const quote of quotesArray) {
+      if (!quote.symbol) continue;
+      results.set(quote.symbol, {
+        symbol: quote.symbol,
+        price: quote.regularMarketPrice ?? 0,
+        priceChange: quote.regularMarketChange ?? 0,
+        priceChangePercent: quote.regularMarketChangePercent ?? 0,
+        volume: quote.regularMarketVolume ?? 0,
+        avgVolume10Day: quote.averageDailyVolume10Day ?? 0,
+        avgVolume90Day: quote.averageDailyVolume3Month ?? 0,
+        high52Week: quote.fiftyTwoWeekHigh ?? 0,
+        low52Week: quote.fiftyTwoWeekLow ?? 0,
+        companyName: quote.longName ?? quote.shortName ?? quote.symbol,
+        industry: quote.industry ?? 'Unknown',
+        marketCap: quote.marketCap ?? 0,
+        website: null,
+      });
+    }
+
+    console.log(`[YahooFinance] Got ${results.size} quotes`);
+    return results;
+  }
+
   async getHistoricalData(symbol: string, days: number = 60): Promise<HistoricalBar[]> {
     console.log(`[YahooFinance] Fetching ${days} days of historical data for ${symbol}`);
 
