@@ -512,3 +512,54 @@
     display: none;
   }
 }
+
+/* Small phones like iPhone 12 (390px) */
+@media (max-width: 420px) {
+  .stock-checklist {
+    padding-top: 3rem;
+  }
+
+  .app-header {
+    padding: 0.4rem 0.5rem;
+    gap: 0.35rem;
+  }
+
+  .header-left {
+    gap: 0.35rem;
+  }
+
+  .header-logo {
+    width: 28px;
+    height: 28px;
+  }
+
+  .symbol-input {
+    width: 60px;
+    padding: 0.3rem 0.4rem;
+    font-size: 0.8rem;
+  }
+
+  .stock-checklist .btn-primary {
+    padding: 0.3rem 0.5rem;
+    font-size: 0.8rem;
+  }
+
+  .stock-checklist .btn-primary.btn-refresh {
+    padding: 0.3rem 0.4rem;
+    font-size: 0.9rem;
+  }
+
+  .header-price {
+    font-size: 0.75rem;
+    margin-left: auto;
+  }
+
+  .header-market-cap {
+    font-size: 0.75rem;
+  }
+
+  .header-right .auth-button {
+    padding: 0.3rem 0.6rem;
+    font-size: 0.75rem;
+  }
+}
