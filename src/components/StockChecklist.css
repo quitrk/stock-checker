@@ -1,13 +1,21 @@
 .stock-checklist {
   padding: 1rem 1.5rem;
-  padding-top: 5rem;
+  padding-top: 124px; /* 60px header + 48px toolbar + 8px spacing */
   overflow-x: hidden;
 }
 
 .sidebar-overlay {
   position: fixed;
   inset: 0;
-  z-index: 899;
+  top: 108px; /* 60px header + 48px toolbar */
+  z-index: 799;
+  background: rgba(0, 0, 0, 0.5);
+}
+
+@media (max-width: 768px) {
+  .sidebar-overlay {
+    top: 96px; /* 48px header + 48px toolbar */
+  }
 }
 
 /* App Header */
@@ -16,14 +24,13 @@
   top: 0;
   left: 0;
   right: 0;
-  z-index: 1000;
+  z-index: 1001;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
   padding: 0.75rem 1.5rem;
   background: var(--surface);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
 .btn-menu {
@@ -139,43 +146,42 @@
   position: relative;
 }
 
-.stock-checklist .btn-primary {
-  padding: 0.35rem 0.6rem;
-  font-size: 0.8rem;
-  font-weight: 500;
-  background: var(--primary);
-  color: white;
-  border: none;
+.btn-split .btn {
   border-radius: 0 4px 4px 0;
-  cursor: pointer;
-  transition: background 0.2s;
 }
 
-.stock-checklist .btn-primary.btn-refresh {
-  padding: 0.35rem 0.5rem;
-  border-left: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 0 4px 4px 0;
-  font-size: 1rem;
-}
-
-.stock-checklist .btn-split .btn-primary:not(:last-child) {
+.btn-split .btn:not(:last-child) {
   border-radius: 0;
 }
 
-.stock-checklist .btn-primary:hover:not(:disabled) {
-  background: var(--primary-hover, #4f46e5);
+.btn-split .btn-refresh {
+  border-left: 1px solid rgba(255, 255, 255, 0.2);
+  font-size: 1rem;
+  padding: 0.3rem 0.5rem;
 }
 
-.stock-checklist .btn-primary:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-/* Results Actions */
-.results-actions {
+/* Actions bar - watchlist toggle + add to watchlist */
+.actions-bar {
+  position: fixed;
+  top: 60px; /* desktop header height */
+  left: 0;
+  right: 0;
+  height: 48px;
   display: flex;
-  justify-content: flex-end;
-  margin-bottom: 1rem;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 1.5rem;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border-color);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  z-index: 1000;
+}
+
+@media (max-width: 768px) {
+  .actions-bar {
+    top: 48px; /* mobile header height */
+    padding: 0 0.75rem;
+  }
 }
 
 /* Two-column Layout */
@@ -449,7 +455,12 @@
 @media (max-width: 768px) {
   .stock-checklist {
     padding: 0.75rem;
-    padding-top: 4rem;
+    padding-top: 106px; /* 48px header + 40px toolbar + 8px spacing */
+  }
+
+  .app-header {
+    height: 48px;
+    padding: 0 0.75rem;
   }
 
   .results-actions {
@@ -484,16 +495,6 @@
     font-size: 1rem;
   }
 
-  .stock-checklist .btn-primary {
-    padding: 0.5rem 0.75rem;
-    font-size: 1rem;
-  }
-
-  .stock-checklist .btn-primary.btn-refresh {
-    padding: 0.5rem 0.75rem;
-    font-size: 1.2rem;
-  }
-
   .header-price {
     margin-left: auto;
   }
@@ -513,53 +514,10 @@
   }
 }
 
-/* Small phones like iPhone 12 (390px) */
+/* Small phones - just tighten spacing, same layout */
 @media (max-width: 420px) {
-  .stock-checklist {
-    padding-top: 3rem;
-  }
-
-  .app-header {
-    padding: 0.4rem 0.5rem;
-    gap: 0.35rem;
-  }
-
-  .header-left {
-    gap: 0.35rem;
-  }
-
   .header-logo {
-    width: 28px;
-    height: 28px;
-  }
-
-  .symbol-input {
-    width: 60px;
-    padding: 0.3rem 0.4rem;
-    font-size: 0.8rem;
-  }
-
-  .stock-checklist .btn-primary {
-    padding: 0.3rem 0.5rem;
-    font-size: 0.8rem;
-  }
-
-  .stock-checklist .btn-primary.btn-refresh {
-    padding: 0.3rem 0.4rem;
-    font-size: 0.9rem;
-  }
-
-  .header-price {
-    font-size: 0.75rem;
-    margin-left: auto;
-  }
-
-  .header-market-cap {
-    font-size: 0.75rem;
-  }
-
-  .header-right .auth-button {
-    padding: 0.3rem 0.6rem;
-    font-size: 0.75rem;
+    width: 20px;
+    height: 20px;
   }
 }

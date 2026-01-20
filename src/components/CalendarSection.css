@@ -2,41 +2,175 @@
   background: var(--card-bg, #1a1a2e);
 }
 
+.catalyst-source-selector {
+  margin-bottom: 0.75rem;
+}
+
+.source-label {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--text-secondary, #888);
+  margin-bottom: 0.35rem;
+}
+
+.source-select {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  background: var(--card-bg-secondary, rgba(255, 255, 255, 0.05));
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
+  border-radius: 6px;
+  color: var(--text-primary, #fff);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.source-select:focus {
+  outline: none;
+  border-color: var(--accent-color, #4a9eff);
+}
+
+.source-select optgroup {
+  font-weight: 600;
+  color: var(--text-secondary, #888);
+}
+
+.source-select option {
+  font-weight: 400;
+  color: var(--text-primary, #fff);
+}
+
+.catalyst-loading {
+  padding: 1rem;
+  text-align: center;
+  color: var(--text-secondary, #888);
+  font-size: 0.85rem;
+}
+
+button.event-symbol {
+  display: inline-block;
+  padding: 0.1rem 0.35rem;
+  margin-right: 0.4rem;
+  background: var(--accent-bg, rgba(74, 158, 255, 0.15));
+  color: var(--accent-color, #4a9eff);
+  border-radius: 3px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+button.event-symbol:hover {
+  background: var(--accent-color, #4a9eff);
+  color: var(--card-bg, #1a1a2e);
+}
+
 .calendar-events {
   display: flex;
-  flex-wrap: wrap;
-  gap: 1rem;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.events-header {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary, #888);
+  margin-top: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.events-header:first-child {
+  margin-top: 0;
 }
 
 .calendar-event {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 0.75rem;
-  padding: 0.75rem 1rem;
+  padding: 0.6rem 0.75rem;
   background: var(--card-bg-secondary, rgba(255, 255, 255, 0.05));
   border-radius: 6px;
-  min-width: 200px;
 }
 
+.calendar-event.past-event {
+  opacity: 0.6;
+}
+
+a.calendar-event {
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+a.calendar-event:hover {
+  background: var(--card-bg-hover, rgba(255, 255, 255, 0.1));
+}
+
+
 .event-icon {
-  font-size: 1.25rem;
+  font-size: 1.1rem;
+  flex-shrink: 0;
+  margin-top: 0.1rem;
+}
+
+.event-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  flex: 1;
+  min-width: 0;
 }
 
 .event-label {
+  color: var(--text-primary, #fff);
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.event-description {
   color: var(--text-secondary, #888);
-  font-size: 0.8rem;
+  font-size: 0.75rem;
+  line-height: 1.3;
 }
 
 .event-date {
   color: var(--text-primary, #fff);
   font-size: 0.8rem;
   font-weight: 500;
-  margin-left: auto;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.event-date.past {
+  color: var(--text-secondary, #888);
+}
+
+.event-date.estimated {
+  color: var(--text-secondary, #888);
+}
+
+.estimate-badge {
+  font-size: 0.6rem;
+  padding: 0.1rem 0.3rem;
+  background: var(--warning-bg, rgba(255, 193, 7, 0.15));
+  color: var(--warning-color, #ffc107);
+  border-radius: 3px;
+  text-transform: uppercase;
 }
 
 @media (max-width: 768px) {
   .calendar-event {
-    min-width: 0;
-    flex: 1;
+    padding: 0.5rem 0.6rem;
+  }
+
+  .event-description {
+    display: none;
   }
 }

@@ -74,30 +74,3 @@
   border-top: 1px solid var(--border-color);
   border-radius: 0;
 }
-
-.watchlist-create-form {
-  padding: 0.75rem;
-  border-top: 1px solid var(--border-color);
-}
-
-.watchlist-create-form input {
-  width: 100%;
-  padding: 0.5rem;
-  font-size: 0.85rem;
-  background: var(--background);
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
-  color: var(--text-primary);
-  margin-bottom: 0.5rem;
-}
-
-.watchlist-create-form input:focus {
-  outline: none;
-  border-color: var(--primary);
-}
-
-.create-actions {
-  display: flex;
-  gap: 0.5rem;
-  justify-content: flex-end;
-}

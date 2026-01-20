@@ -1,6 +1,6 @@
 .watchlist-sidebar {
   position: fixed;
-  top: 60px;
+  top: 110px; /* 60px header + 40px toolbar */
   left: 0;
   bottom: 0;
   width: 360px;
@@ -9,32 +9,13 @@
   z-index: 900;
   transform: translateX(-100%);
   transition: transform 0.2s ease;
+  display: flex;
+  flex-direction: column;
 }
 
 .watchlist-sidebar.open {
   transform: translateX(0);
-  padding-top: 3rem;
-}
-
-.sidebar-toggle {
-  position: fixed;
-  top: 80px;
-  left: 1.5rem;
-  width: 32px;
-  height: 32px;
-  background: none;
-  border: none;
-  color: var(--text-secondary);
-  font-size: 1.1rem;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 901;
-}
-
-.sidebar-toggle:hover {
-  color: var(--text-primary);
+  overflow-y: auto;
 }
 
 .sidebar-login,
@@ -45,7 +26,7 @@
 
 .sidebar-login p,
 .sidebar-empty p {
-  margin: 0 0 0.75rem 0;
+  margin: 0;
   font-size: 0.95rem;
   color: var(--text-secondary);
 }
@@ -123,6 +104,14 @@
   background: var(--surface-hover, #333);
 }
 
+.stock-row .stock-logo {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  object-fit: contain;
+  background: #fff;
+}
+
 .stock-row .symbol {
   font-weight: 600;
   min-width: 50px;
@@ -192,16 +181,11 @@
 
 @media (max-width: 768px) {
   .watchlist-sidebar {
-    top: 52px;
+    top: 96px; /* 48px header + 40px toolbar */
+    z-index: 800;
   }
 
   .watchlist-sidebar.open {
     width: 100%;
-  }
-
-  .sidebar-toggle {
-    top: 70px;
-    left: 0.75rem;
-    font-size: 1.4rem;
   }
 }

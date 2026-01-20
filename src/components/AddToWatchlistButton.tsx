@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useApp } from '../contexts/AppContext';
 import { useToast } from '../contexts/ToastContext';
 import { Button } from './Button';
+import { CreateWatchlistForm } from './CreateWatchlistForm';
 import './AddToWatchlistButton.css';
 
 interface AddToWatchlistButtonProps {
@@ -12,10 +13,8 @@ interface AddToWatchlistButtonProps {
 export function AddToWatchlistButton({ symbol }: AddToWatchlistButtonProps) {
   const { isAuthenticated, login } = useAuth();
   const { watchlist } = useApp();
-  const { showSuccess, showError } = useToast();
+  const { showError } = useToast();
   const [showDropdown, setShowDropdown] = useState(false);
-  const [showCreate, setShowCreate] = useState(false);
-  const [newName, setNewName] = useState('');
   const [isAdding, setIsAdding] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -23,7 +22,6 @@ export function AddToWatchlistButton({ symbol }: AddToWatchlistButtonProps) {
     const handleClickOutside = (e: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setShowDropdown(false);
-        setShowCreate(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -43,10 +41,8 @@ export function AddToWatchlistButton({ symbol }: AddToWatchlistButtonProps) {
     try {
       if (isInWatchlist) {
         await watchlist.removeSymbol(watchlistId, symbol);
-        showSuccess(`Removed ${symbol} from watchlist`);
       } else {
         await watchlist.addSymbol(watchlistId, symbol);
-        showSuccess(`Added ${symbol} to watchlist`);
       }
     } catch (err) {
       showError(err instanceof Error ? err.message : isInWatchlist ? 'Failed to remove' : 'Failed to add');
@@ -55,16 +51,10 @@ export function AddToWatchlistButton({ symbol }: AddToWatchlistButtonProps) {
     }
   };
 
-  const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newName.trim()) return;
-
+  const handleCreate = async (name: string) => {
     try {
-      const created = await watchlist.createWatchlist(newName.trim());
+      const created = await watchlist.createWatchlist(name);
       await watchlist.addSymbol(created.id, symbol);
-      showSuccess(`Created "${newName}" and added ${symbol}`);
-      setNewName('');
-      setShowCreate(false);
       setShowDropdown(false);
     } catch (err) {
       showError(err instanceof Error ? err.message : 'Failed to create watchlist');
@@ -84,55 +74,31 @@ export function AddToWatchlistButton({ symbol }: AddToWatchlistButtonProps) {
 
       {showDropdown && (
         <div className="watchlist-dropdown">
-          {watchlist.watchlists.length === 0 && !showCreate ? (
-            <div className="watchlist-empty">
-              <p>No watchlists yet</p>
-              <Button variant="primary" onClick={() => setShowCreate(true)} size='sm'>
-                Create your first watchlist
-              </Button>
+          {watchlist.watchlists.length > 0 && (
+            <div className="watchlist-list">
+              {watchlist.watchlists.map((w) => {
+                const isLoading = isAdding === w.id;
+                const isInWatchlist = w.symbols.includes(symbol.toUpperCase());
+                return (
+                  <button
+                    key={w.id}
+                    type="button"
+                    className={`watchlist-item ${isInWatchlist ? 'in-watchlist' : ''}`}
+                    onClick={() => handleToggleWatchlist(w.id, isInWatchlist)}
+                    disabled={isLoading}
+                  >
+                    <span className="watchlist-name">{w.name}</span>
+                    {isInWatchlist && <span className="watchlist-check">✓</span>}
+                  </button>
+                );
+              })}
             </div>
-          ) : (
-            <>
-              <div className="watchlist-list">
-                {watchlist.watchlists.map((w) => {
-                  const isLoading = isAdding === w.id;
-                  const isInWatchlist = w.symbols.includes(symbol.toUpperCase());
-                  return (
-                    <button
-                      key={w.id}
-                      type="button"
-                      className={`watchlist-item ${isInWatchlist ? 'in-watchlist' : ''}`}
-                      onClick={() => handleToggleWatchlist(w.id, isInWatchlist)}
-                      disabled={isLoading}
-                    >
-                      <span className="watchlist-name">{w.name}</span>
-                      {isInWatchlist && <span className="watchlist-check">✓</span>}
-                    </button>
-                  );
-                })}
-              </div>
-
-              {showCreate ? (
-                <form onSubmit={handleCreate} className="watchlist-create-form">
-                  <input
-                    type="text"
-                    value={newName}
-                    onChange={(e) => setNewName(e.target.value)}
-                    placeholder="Watchlist name"
-                    autoFocus
-                  />
-                  <div className="create-actions">
-                    <Button variant="secondary" size="sm" type="button" onClick={() => setShowCreate(false)}>Cancel</Button>
-                    <Button variant="primary" size="sm" type="submit" disabled={!newName.trim()}>Create</Button>
-                  </div>
-                </form>
-              ) : (
-                <Button variant="text" className="watchlist-create-btn" onClick={() => setShowCreate(true)}>
-                  + New watchlist
-                </Button>
-              )}
-            </>
           )}
+
+          <CreateWatchlistForm
+            onSubmit={handleCreate}
+            className="watchlist-create-btn"
+          />
         </div>
       )}
     </div>

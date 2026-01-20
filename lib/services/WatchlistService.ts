@@ -7,6 +7,13 @@ import type { ChecklistResult } from '../types/index.js';
 const MAX_WATCHLISTS_PER_USER = 20;
 const MAX_SYMBOLS_PER_WATCHLIST = 100;
 
+function getLogoUrl(symbol: string): string | null {
+  const logoKitToken = process.env.LOGOKIT_TOKEN;
+  return logoKitToken
+    ? `https://img.logokit.com/ticker/${symbol.toUpperCase()}?token=${logoKitToken}`
+    : null;
+}
+
 export class WatchlistService {
   private financeProvider = new YahooFinanceProvider();
 
@@ -91,6 +98,7 @@ export class WatchlistService {
           price: cached.price ?? 0,
           priceChange: cached.priceChange ?? 0,
           priceChangePercent: cached.priceChangePercent ?? 0,
+          logoUrl: getLogoUrl(cached.symbol),
         });
       } else {
         uncachedSymbols.push(symbol);
@@ -111,6 +119,7 @@ export class WatchlistService {
               price: data.price,
               priceChange: data.priceChange,
               priceChangePercent: data.priceChangePercent,
+              logoUrl: getLogoUrl(data.symbol),
             });
           } else {
             // Symbol not found, add placeholder
@@ -120,6 +129,7 @@ export class WatchlistService {
               price: 0,
               priceChange: 0,
               priceChangePercent: 0,
+              logoUrl: getLogoUrl(symbol),
             });
           }
         }
@@ -133,18 +143,14 @@ export class WatchlistService {
             price: 0,
             priceChange: 0,
             priceChangePercent: 0,
+            logoUrl: getLogoUrl(symbol),
           });
         }
       }
     }
 
-    // Sort stocks to match original symbol order
-    const symbolOrder = new Map(symbols.map((s, i) => [s.toUpperCase(), i]));
-    stocks.sort((a, b) => {
-      const orderA = symbolOrder.get(a.symbol.toUpperCase()) ?? 999;
-      const orderB = symbolOrder.get(b.symbol.toUpperCase()) ?? 999;
-      return orderA - orderB;
-    });
+    // Sort stocks alphabetically by symbol
+    stocks.sort((a, b) => a.symbol.localeCompare(b.symbol));
 
     return stocks;
   }

@@ -51,8 +51,28 @@ export interface NewsItem {
 export interface CalendarEvents {
   earningsDate: string | null;
   earningsDateEnd: string | null;
+  earningsCallDate: string | null;
+  isEarningsDateEstimate: boolean;
+  earningsEstimate: number | null;
+  revenueEstimate: number | null;
   exDividendDate: string | null;
   dividendDate: string | null;
+}
+
+export interface InsiderTransaction {
+  name: string;
+  relation: string;
+  transactionDate: string;
+  transactionType: string;
+  shares: number;
+  value: number | null;
+}
+
+export interface EarningsHistory {
+  date: string;
+  epsActual: number | null;
+  epsEstimate: number | null;
+  surprisePercent: number | null;
 }
 
 export interface AnalystRating {
@@ -81,3 +101,6 @@ export interface ShortInterestData {
   sharesShortPriorMonth: number | null;  // previous month for trend
   dateShortInterest: string | null;      // date of the data
 }
+
+// Re-export catalyst types for provider use
+export type { CatalystEvent, CatalystEventType, CatalystSource } from '../../types/index.js';

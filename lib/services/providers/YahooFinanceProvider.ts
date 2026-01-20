@@ -3,20 +3,57 @@ import type { QuoteSummaryResult } from 'yahoo-finance2/modules/quoteSummary';
 import type { Quote } from 'yahoo-finance2/modules/quote';
 import type { IFinanceProvider } from './IFinanceProvider.js';
 import { ProviderRateLimitError } from './IFinanceProvider.js';
-import type { FundamentalData, MarketData, StockData, HistoricalBar, NewsItem, CalendarEvents, AnalystData, AnalystRating, ShortInterestData } from './types.js';
+import type { FundamentalData, MarketData, StockData, HistoricalBar, NewsItem, CalendarEvents, AnalystData, AnalystRating, ShortInterestData, InsiderTransaction, EarningsHistory, CatalystEvent } from './types.js';
 
 export class YahooFinanceProvider implements IFinanceProvider {
   readonly providerName = 'yahoo';
 
   private yahooFinance: InstanceType<typeof YahooFinance>;
   private cache: Map<string, { data: StockData; timestamp: number }> = new Map();
+  private quoteSummaryCache: Map<string, { data: QuoteSummaryResult; timestamp: number }> = new Map();
   private readonly CACHE_TTL = 15 * 60 * 1000;
   private lastRequestTime = 0;
   private readonly MIN_REQUEST_INTERVAL = 500;
 
+  // All modules we need - fetched in a single call
+  private readonly ALL_MODULES = [
+    'price',
+    'summaryDetail',
+    'quoteType',
+    'defaultKeyStatistics',
+    'financialData',
+    'majorHoldersBreakdown',
+    'assetProfile',
+    'calendarEvents',
+    'upgradeDowngradeHistory',
+    'insiderTransactions',
+    'earningsHistory',
+    'earningsTrend',
+  ] as const;
+
   constructor() {
     // Initialize yahoo-finance2 v3 with suppressed notices
     this.yahooFinance = new YahooFinance({ suppressNotices: ['yahooSurvey'] });
+  }
+
+  /**
+   * Fetches all quoteSummary modules in a single API call and caches the result.
+   * All other methods should use this to avoid duplicate external calls.
+   */
+  private async getQuoteSummary(symbol: string): Promise<QuoteSummaryResult> {
+    const cached = this.quoteSummaryCache.get(symbol);
+    if (cached && Date.now() - cached.timestamp < this.CACHE_TTL) {
+      console.log(`[YahooFinance] Using cached quoteSummary for ${symbol}`);
+      return cached.data;
+    }
+
+    console.log(`[YahooFinance] Fetching all modules for ${symbol} in single call...`);
+    const data = await this.retry(() => this.yahooFinance.quoteSummary(symbol, {
+      modules: [...this.ALL_MODULES],
+    }));
+
+    this.quoteSummaryCache.set(symbol, { data, timestamp: Date.now() });
+    return data;
   }
 
   private parseDate(value: any): Date | null {
@@ -69,23 +106,12 @@ export class YahooFinanceProvider implements IFinanceProvider {
   async getStockData(symbol: string): Promise<StockData> {
     const cached = this.cache.get(symbol);
     if (cached && Date.now() - cached.timestamp < this.CACHE_TTL) {
-      console.log(`[YahooFinance] Using cached data for ${symbol}`);
+      console.log(`[YahooFinance] Using cached StockData for ${symbol}`);
       return cached.data;
     }
 
-    console.log(`[YahooFinance] Fetching all data for ${symbol} in single call...`);
-
-    const data: QuoteSummaryResult = await this.retry(() => this.yahooFinance.quoteSummary(symbol, {
-      modules: [
-        'price',
-        'summaryDetail',
-        'quoteType',
-        'defaultKeyStatistics',
-        'financialData',
-        'majorHoldersBreakdown',
-        'assetProfile',
-      ],
-    }));
+    // Use shared quoteSummary cache - one external call for all data
+    const data = await this.getQuoteSummary(symbol);
 
     const rawIndustry = data.assetProfile?.industry ?? data.summaryDetail?.industry ?? data.quoteType?.industry;
     const industry = typeof rawIndustry === 'string' ? rawIndustry : 'Unknown';
@@ -182,75 +208,6 @@ export class YahooFinanceProvider implements IFinanceProvider {
     return result;
   }
 
-  async getFundamentalData(symbol: string): Promise<FundamentalData> {
-    console.log(`[YahooFinance] Fetching fundamental data for ${symbol}`);
-
-    try {
-      const data = await this.yahooFinance.quoteSummary(symbol, {
-        modules: ['defaultKeyStatistics', 'financialData', 'majorHoldersBreakdown'],
-      });
-
-      const insiderOwnership = data.defaultKeyStatistics?.heldPercentInsiders ??
-                               data.majorHoldersBreakdown?.insidersPercentHeld ?? null;
-      const institutionalOwnership = data.defaultKeyStatistics?.heldPercentInstitutions ??
-                                     data.majorHoldersBreakdown?.institutionsPercentHeld ?? null;
-      const totalCash = data.financialData?.totalCash ?? null;
-      const totalDebt = data.financialData?.totalDebt ?? null;
-      const freeCashFlow = data.financialData?.freeCashflow ?? null;
-
-      let cashRunwayMonths: number | null = null;
-      if (totalCash && freeCashFlow && freeCashFlow < 0) {
-        const monthlyBurn = Math.abs(freeCashFlow) / 12;
-        cashRunwayMonths = totalCash / monthlyBurn;
-      }
-
-      // Get R&D and revenue from fundamentalsTimeSeries
-      let researchDevelopment: number | null = null;
-      let totalRevenue: number | null = null;
-      try {
-        const startDate = new Date();
-        startDate.setFullYear(startDate.getFullYear() - 2);
-        const timeSeries = await this.yahooFinance.fundamentalsTimeSeries(symbol, {
-          period1: startDate,
-          type: 'annual',
-          module: 'all',
-        });
-        if (Array.isArray(timeSeries) && timeSeries.length > 0) {
-          const latest = timeSeries[timeSeries.length - 1] as Record<string, unknown>;
-          researchDevelopment = (latest.researchAndDevelopment as number) ?? null;
-          totalRevenue = (latest.totalRevenue as number) ?? (latest.operatingRevenue as number) ?? null;
-        }
-      } catch (e) {
-        console.log(`[YahooFinance] Could not fetch fundamentalsTimeSeries for ${symbol}`);
-      }
-
-      return {
-        symbol,
-        insiderOwnership,
-        institutionalOwnership,
-        totalCash,
-        totalDebt,
-        freeCashFlow,
-        cashRunwayMonths,
-        researchDevelopment,
-        totalRevenue,
-      };
-    } catch (error) {
-      console.error(`[YahooFinance] Error fetching data for ${symbol}:`, error);
-      return {
-        symbol,
-        insiderOwnership: null,
-        institutionalOwnership: null,
-        totalCash: null,
-        totalDebt: null,
-        freeCashFlow: null,
-        cashRunwayMonths: null,
-        researchDevelopment: null,
-        totalRevenue: null,
-      };
-    }
-  }
-
   async getMarketData(symbol: string): Promise<MarketData> {
     console.log(`[YahooFinance] Fetching market data for ${symbol}`);
 
@@ -285,6 +242,9 @@ export class YahooFinanceProvider implements IFinanceProvider {
 
     for (const quote of quotesArray) {
       if (!quote.symbol) continue;
+      // Type assertion needed because yahoo-finance2 Quote type doesn't expose industry,
+      // but the API does return it
+      const q = quote as typeof quote & { industry?: string };
       results.set(quote.symbol, {
         symbol: quote.symbol,
         price: quote.regularMarketPrice ?? 0,
@@ -296,7 +256,7 @@ export class YahooFinanceProvider implements IFinanceProvider {
         high52Week: quote.fiftyTwoWeekHigh ?? 0,
         low52Week: quote.fiftyTwoWeekLow ?? 0,
         companyName: quote.longName ?? quote.shortName ?? quote.symbol,
-        industry: quote.industry ?? 'Unknown',
+        industry: q.industry ?? 'Unknown',
         marketCap: quote.marketCap ?? 0,
         website: null,
       });
@@ -379,15 +339,15 @@ export class YahooFinanceProvider implements IFinanceProvider {
   }
 
   async getCalendarEvents(symbol: string): Promise<CalendarEvents> {
-    console.log(`[YahooFinance] Fetching calendar events for ${symbol}`);
+    console.log(`[YahooFinance] Getting calendar events for ${symbol}`);
 
     try {
-      const data = await this.retry(() => this.yahooFinance.quoteSummary(symbol, {
-        modules: ['calendarEvents'],
-      }));
+      // Use shared quoteSummary cache - no extra external call
+      const data = await this.getQuoteSummary(symbol);
 
       const calendar = data.calendarEvents;
       const earnings = calendar?.earnings;
+      const earningsTrend = data.earningsTrend?.trend?.[0]; // Current quarter
 
       return {
         earningsDate: earnings?.earningsDate?.[0]
@@ -396,6 +356,12 @@ export class YahooFinanceProvider implements IFinanceProvider {
         earningsDateEnd: earnings?.earningsDate?.[1]
           ? new Date(earnings.earningsDate[1]).toISOString().split('T')[0]
           : null,
+        earningsCallDate: earnings?.earningsCallDate?.[0]
+          ? new Date(earnings.earningsCallDate[0]).toISOString().split('T')[0]
+          : null,
+        isEarningsDateEstimate: earnings?.isEarningsDateEstimate ?? true,
+        earningsEstimate: earningsTrend?.earningsEstimate?.avg ?? earnings?.earningsAverage ?? null,
+        revenueEstimate: earningsTrend?.revenueEstimate?.avg ?? earnings?.revenueAverage ?? null,
         exDividendDate: calendar?.exDividendDate
           ? new Date(calendar.exDividendDate).toISOString().split('T')[0]
           : null,
@@ -404,10 +370,14 @@ export class YahooFinanceProvider implements IFinanceProvider {
           : null,
       };
     } catch (error) {
-      console.error(`[YahooFinance] Error fetching calendar events for ${symbol}:`, error);
+      console.error(`[YahooFinance] Error getting calendar events for ${symbol}:`, error);
       return {
         earningsDate: null,
         earningsDateEnd: null,
+        earningsCallDate: null,
+        isEarningsDateEstimate: true,
+        earningsEstimate: null,
+        revenueEstimate: null,
         exDividendDate: null,
         dividendDate: null,
       };
@@ -415,12 +385,11 @@ export class YahooFinanceProvider implements IFinanceProvider {
   }
 
   async getAnalystData(symbol: string): Promise<AnalystData> {
-    console.log(`[YahooFinance] Fetching analyst data for ${symbol}`);
+    console.log(`[YahooFinance] Getting analyst data for ${symbol}`);
 
     try {
-      const data = await this.retry(() => this.yahooFinance.quoteSummary(symbol, {
-        modules: ['financialData', 'upgradeDowngradeHistory'],
-      }));
+      // Use shared quoteSummary cache - no extra external call
+      const data = await this.getQuoteSummary(symbol);
 
       const financial = data.financialData;
       const upgradeHistory = data.upgradeDowngradeHistory?.history || [];
@@ -468,5 +437,146 @@ export class YahooFinanceProvider implements IFinanceProvider {
         recentRatings: [],
       };
     }
+  }
+
+  async getInsiderTransactions(symbol: string): Promise<InsiderTransaction[]> {
+    console.log(`[YahooFinance] Getting insider transactions for ${symbol}`);
+
+    try {
+      // Use shared quoteSummary cache - no extra external call
+      const data = await this.getQuoteSummary(symbol);
+      const transactions = data.insiderTransactions?.transactions || [];
+
+      return transactions.slice(0, 20).map((t: any) => ({
+        name: t.filerName || 'Unknown',
+        relation: t.filerRelation || 'Unknown',
+        transactionDate: t.startDate ? new Date(t.startDate).toISOString().split('T')[0] : '',
+        transactionType: t.transactionText || 'Unknown',
+        shares: t.shares || 0,
+        value: t.value ?? null,
+      }));
+    } catch (error) {
+      console.error(`[YahooFinance] Error getting insider transactions for ${symbol}:`, error);
+      return [];
+    }
+  }
+
+  async getEarningsHistory(symbol: string): Promise<EarningsHistory[]> {
+    console.log(`[YahooFinance] Getting earnings history for ${symbol}`);
+
+    try {
+      // Use shared quoteSummary cache - no extra external call
+      const data = await this.getQuoteSummary(symbol);
+      const history = data.earningsHistory?.history || [];
+
+      return history.map((h: any) => ({
+        date: h.quarter ? new Date(h.quarter).toISOString().split('T')[0] : '',
+        epsActual: h.epsActual ?? null,
+        epsEstimate: h.epsEstimate ?? null,
+        surprisePercent: h.surprisePercent ?? null,
+      }));
+    } catch (error) {
+      console.error(`[YahooFinance] Error getting earnings history for ${symbol}:`, error);
+      return [];
+    }
+  }
+
+  async getCatalystEvents(symbol: string): Promise<CatalystEvent[]> {
+    console.log(`[YahooFinance] Getting catalyst events for ${symbol}`);
+
+    const events: CatalystEvent[] = [];
+
+    try {
+      // Use shared quoteSummary cache - no extra external call
+      const data = await this.getQuoteSummary(symbol);
+
+      // Earnings events
+      const calendar = data.calendarEvents;
+      const earnings = calendar?.earnings;
+      if (earnings?.earningsDate?.[0]) {
+        const earningsDate = new Date(earnings.earningsDate[0]).toISOString().split('T')[0];
+        const earningsDateEnd = earnings.earningsDate[1]
+          ? new Date(earnings.earningsDate[1]).toISOString().split('T')[0]
+          : undefined;
+
+        events.push({
+          id: `yahoo-earnings-${symbol}-${earningsDate}`,
+          symbol,
+          eventType: 'earnings',
+          date: earningsDate,
+          dateEnd: earningsDateEnd,
+          isEstimate: earnings.isEarningsDateEstimate ?? true,
+          title: 'Earnings Report',
+          description: earnings.earningsAverage
+            ? `EPS estimate: $${earnings.earningsAverage.toFixed(2)}`
+            : undefined,
+          source: 'yahoo',
+          metadata: {
+            epsEstimate: earnings.earningsAverage,
+            revenueEstimate: earnings.revenueAverage,
+          },
+        });
+      }
+
+      // Dividend events
+      if (calendar?.exDividendDate) {
+        const exDivDate = new Date(calendar.exDividendDate).toISOString().split('T')[0];
+        events.push({
+          id: `yahoo-exdiv-${symbol}-${exDivDate}`,
+          symbol,
+          eventType: 'ex_dividend',
+          date: exDivDate,
+          isEstimate: false,
+          title: 'Ex-Dividend Date',
+          source: 'yahoo',
+        });
+      }
+
+      if (calendar?.dividendDate) {
+        const divDate = new Date(calendar.dividendDate).toISOString().split('T')[0];
+        events.push({
+          id: `yahoo-div-${symbol}-${divDate}`,
+          symbol,
+          eventType: 'dividend_payment',
+          date: divDate,
+          isEstimate: false,
+          title: 'Dividend Payment',
+          source: 'yahoo',
+        });
+      }
+
+      // Insider transactions (recent significant ones)
+      const transactions = data.insiderTransactions?.transactions || [];
+      const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
+
+      for (const t of transactions.slice(0, 5)) {
+        const txDate = this.parseDate(t.startDate);
+        if (txDate && txDate.getTime() > thirtyDaysAgo && t.shares && Math.abs(t.shares) > 0) {
+          const dateStr = txDate.toISOString().split('T')[0];
+          const action = t.shares > 0 ? 'bought' : 'sold';
+          events.push({
+            id: `yahoo-insider-${symbol}-${t.filerName}-${dateStr}`,
+            symbol,
+            eventType: 'insider_transaction',
+            date: dateStr,
+            isEstimate: false,
+            title: `Insider ${action} shares`,
+            description: `${t.filerName} (${t.filerRelation}) ${action} ${Math.abs(t.shares).toLocaleString()} shares`,
+            source: 'yahoo',
+            metadata: {
+              name: t.filerName,
+              relation: t.filerRelation,
+              shares: t.shares,
+              value: t.value,
+            },
+          });
+        }
+      }
+
+    } catch (error) {
+      console.error(`[YahooFinance] Error getting catalyst events for ${symbol}:`, error);
+    }
+
+    return events;
   }
 }

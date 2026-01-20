@@ -1,4 +1,5 @@
 import type { Watchlist, WatchlistSummary, WatchlistWithStocks } from '../../lib/types/watchlist.js';
+import type { CatalystEvent } from '../../lib/types/index.js';
 
 const API_BASE = '/api/watchlist';
 
@@ -103,4 +104,15 @@ export async function removeSymbol(watchlistId: string, symbol: string): Promise
 
   const data = await response.json();
   return data.watchlist;
+}
+
+export async function getWatchlistCatalysts(watchlistId: string): Promise<CatalystEvent[]> {
+  const response = await fetch(`${API_BASE}/${watchlistId}/catalysts`);
+
+  if (!response.ok) {
+    throw new Error('Failed to fetch watchlist catalysts');
+  }
+
+  const data = await response.json();
+  return data.catalysts;
 }

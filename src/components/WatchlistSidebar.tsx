@@ -4,6 +4,7 @@ import { useApp } from '../contexts/AppContext';
 import { useToast } from '../contexts/ToastContext';
 import { Button } from './Button';
 import { ConfirmDialog } from './ConfirmDialog';
+import { CreateWatchlistForm } from './CreateWatchlistForm';
 import './WatchlistSidebar.css';
 
 interface WatchlistSidebarProps {
@@ -61,18 +62,22 @@ export function WatchlistSidebar({ isOpen, onToggle, onSelectSymbol }: Watchlist
     onToggle();
   };
 
+  const handleCreateWatchlist = async (name: string) => {
+    try {
+      await watchlist.createWatchlist(name);
+      showSuccess(`Created "${name}"`);
+    } catch (err) {
+      showError(err instanceof Error ? err.message : 'Failed to create watchlist');
+    }
+  };
+
   return (
     <>
-      <span className="sidebar-toggle" onClick={onToggle}>☰</span>
       <aside className={`watchlist-sidebar ${isOpen ? 'open' : ''}`}>
         {!isAuthenticated ? (
         <div className="sidebar-login">
           <p>Sign in to create watchlists</p>
           <Button variant="primary" onClick={() => login('google')}>Sign in</Button>
-        </div>
-      ) : watchlist.watchlists.length === 0 ? (
-        <div className="sidebar-empty">
-          <p>No watchlists yet. Add a symbol to create one.</p>
         </div>
       ) : (
         <div className="sidebar-content">
@@ -110,6 +115,14 @@ export function WatchlistSidebar({ isOpen, onToggle, onSelectSymbol }: Watchlist
                           className="stock-btn"
                           onClick={() => handleSelectSymbol(stock.symbol)}
                         >
+                          {stock.logoUrl && (
+                            <img
+                              src={stock.logoUrl}
+                              alt=""
+                              className="stock-logo"
+                              onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                            />
+                          )}
                           <span className="symbol">{stock.symbol}</span>
                           <span className="price">${(stock.price ?? 0).toFixed(2)}</span>
                           <span className={`change ${(stock.priceChangePercent ?? 0) >= 0 ? 'up' : 'down'}`}>
@@ -131,6 +144,10 @@ export function WatchlistSidebar({ isOpen, onToggle, onSelectSymbol }: Watchlist
             </div>
           ))}
 
+          <CreateWatchlistForm
+            onSubmit={handleCreateWatchlist}
+            className="add-btn"
+          />
         </div>
       )}
       </aside>

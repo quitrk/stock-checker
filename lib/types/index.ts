@@ -30,14 +30,6 @@ export interface NewsItem {
   publishedAt: string;
 }
 
-export interface CalendarEvents {
-  earningsDate: string | null;
-  earningsDateEnd: string | null;
-  exDividendDate: string | null;
-  dividendDate: string | null;
-  summary?: string;
-}
-
 export interface AnalystRating {
   firm: string;
   toGrade: string;
@@ -66,6 +58,40 @@ export interface ShortInterestData {
   dateShortInterest: string | null;
 }
 
+// Catalyst Event Types
+export type CatalystEventType =
+  | 'earnings'
+  | 'earnings_call'
+  | 'ex_dividend'
+  | 'dividend_payment'
+  | 'stock_split'
+  | 'reverse_split'
+  | 'analyst_rating'
+  | 'clinical_trial'
+  | 'fda_approval'
+  | 'pdufa_date'
+  | 'sec_filing'
+  | 'insider_transaction'
+  | 'executive_change'
+  | 'acquisition'
+  | 'partnership';
+
+export type CatalystSource = 'yahoo' | 'sec' | 'clinicaltrials' | 'finnhub';
+
+export interface CatalystEvent {
+  id: string;
+  symbol: string;
+  eventType: CatalystEventType;
+  date: string;
+  dateEnd?: string;
+  isEstimate: boolean;
+  title: string;
+  description?: string;
+  source: CatalystSource;
+  sourceUrl?: string;
+  metadata?: Record<string, unknown>;
+}
+
 export interface ChecklistResult {
   symbol: string;
   companyName: string;
@@ -81,7 +107,7 @@ export interface ChecklistResult {
   errors: string[];
   news: NewsItem[];
   newsSummary?: string;
-  calendarEvents: CalendarEvents | null;
+  catalystEvents: CatalystEvent[];
   analystData: AnalystData | null;
   shortInterestData: ShortInterestData | null;
 }

@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { WatchlistService } from '../services/WatchlistService.js';
+import { CatalystService } from '../services/CatalystService.js';
 import { requireAuth, getAuthUser } from '../middleware/auth.js';
 
 const watchlist = new Hono();
@@ -44,6 +45,25 @@ watchlist.get('/:id', async (c) => {
   const isOwner = user?.id === result.userId;
 
   return c.json({ watchlist: result, isOwner });
+});
+
+// Get catalyst events for all symbols in a watchlist (public)
+watchlist.get('/:id/catalysts', async (c) => {
+  const { id } = c.req.param();
+  const result = await watchlistService.getWatchlist(id);
+
+  if (!result) {
+    return c.json({ error: 'Watchlist not found' }, 404);
+  }
+
+  if (result.symbols.length === 0) {
+    return c.json({ catalysts: [] });
+  }
+
+  const catalystService = new CatalystService();
+  const catalysts = await catalystService.getCatalystEventsForSymbols(result.symbols);
+
+  return c.json({ catalysts });
 });
 
 // Update watchlist name (requires auth + ownership)

@@ -20,6 +20,7 @@ export interface WatchlistStock {
   price: number;
   priceChange: number;
   priceChangePercent: number;
+  logoUrl: string | null;
 }
 
 export interface WatchlistWithStocks extends Watchlist {

@@ -1,5 +1,6 @@
 import { YahooFinanceProvider, type FundamentalData, type MarketData, type HistoricalBar, type ShortInterestData } from './providers/index.js';
 import { SECService, SECFilingInfo } from './SECService.js';
+import { CatalystService } from './CatalystService.js';
 import { getCached, setCache, cacheKey } from './CacheService.js';
 import type {
   ChecklistResult,
@@ -7,7 +8,7 @@ import type {
   ChecklistItem,
   ChecklistStatus,
   NewsItem as NewsItemType,
-  CalendarEvents as CalendarEventsType,
+  CatalystEvent,
   AnalystData as AnalystDataType,
 } from '../types/index.js';
 
@@ -21,10 +22,13 @@ interface VolumeAnalysis {
 export class ChecklistService {
   private financeProvider: YahooFinanceProvider;
   private secService: SECService;
+  private catalystService: CatalystService;
 
   constructor() {
     this.financeProvider = new YahooFinanceProvider();
     this.secService = new SECService();
+    // Share providers with CatalystService to reuse cached data
+    this.catalystService = new CatalystService(this.financeProvider, this.secService);
   }
 
   async generateChecklist(symbol: string, skipCache = false): Promise<ChecklistResult> {
@@ -33,8 +37,8 @@ export class ChecklistService {
     // Check cache first (unless skipping)
     if (!skipCache) {
       const cached = await getCached<ChecklistResult>(cacheKey('checklist', upperSymbol));
-      // Auto-refresh if cached data is missing new fields (news, analystData, calendarEvents)
-      if (cached && cached.news !== undefined) {
+      // Auto-refresh if cached data is missing catalystEvents field
+      if (cached && cached.catalystEvents !== undefined) {
         return cached;
       }
     }
@@ -85,45 +89,25 @@ export class ChecklistService {
       errors.push(`SEC filings unavailable: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
 
-    // Fetch news, calendar events, and analyst data in parallel
+    // Fetch news, catalyst events, and analyst data in parallel
     let news: NewsItemType[] = [];
-    let calendarEvents: CalendarEventsType | null = null;
+    let catalystEvents: CatalystEvent[] = [];
     let analystData: AnalystDataType | null = null;
 
-    const [newsResult, calendarResult, analystResult] = await Promise.allSettled([
+    const companyName = marketData?.companyName || upperSymbol;
+    const industry = marketData?.industry || 'Unknown';
+
+    const [newsResult, catalystResult, analystResult] = await Promise.allSettled([
       this.financeProvider.getNews(upperSymbol, 5),
-      this.financeProvider.getCalendarEvents(upperSymbol),
+      this.catalystService.getCatalystEvents(upperSymbol, companyName, industry),
       this.financeProvider.getAnalystData(upperSymbol),
     ]);
 
     if (newsResult.status === 'fulfilled') {
       news = newsResult.value;
     }
-    if (calendarResult.status === 'fulfilled') {
-      calendarEvents = calendarResult.value;
-      if (calendarEvents) {
-        // Find the next upcoming event
-        const now = new Date();
-        now.setHours(0, 0, 0, 0);
-        const events: { label: string; date: Date }[] = [];
-        if (calendarEvents.earningsDate) {
-          const d = new Date(calendarEvents.earningsDate);
-          if (d >= now) events.push({ label: 'Earnings', date: d });
-        }
-        if (calendarEvents.exDividendDate) {
-          const d = new Date(calendarEvents.exDividendDate);
-          if (d >= now) events.push({ label: 'Ex-Div', date: d });
-        }
-        if (calendarEvents.dividendDate) {
-          const d = new Date(calendarEvents.dividendDate);
-          if (d >= now) events.push({ label: 'Dividend', date: d });
-        }
-        events.sort((a, b) => a.date.getTime() - b.date.getTime());
-        if (events.length > 0) {
-          const next = events[0];
-          calendarEvents.summary = `${next.label} ${next.date.toLocaleDateString()}`;
-        }
-      }
+    if (catalystResult.status === 'fulfilled') {
+      catalystEvents = catalystResult.value;
     }
     if (analystResult.status === 'fulfilled') {
       analystData = analystResult.value;
@@ -172,7 +156,7 @@ export class ChecklistService {
       errors,
       news,
       newsSummary: news.length > 0 ? news[0].title : undefined,
-      calendarEvents,
+      catalystEvents,
       analystData,
       shortInterestData,
     };

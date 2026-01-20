@@ -13,6 +13,7 @@ import { AnalystSection } from './AnalystSection';
 import { CalendarSection } from './CalendarSection';
 import { NewsSection } from './NewsSection';
 import { Expander } from './Expander';
+import { Button } from './Button';
 import { AuthButton } from './AuthButton';
 import { AddToWatchlistButton } from './AddToWatchlistButton';
 import { WatchlistSidebar } from './WatchlistSidebar';
@@ -87,6 +88,7 @@ export function StockChecklist() {
       showWarning('Please enter a stock symbol', ToastDuration.Short);
       return;
     }
+    setSidebarOpen(false);
     fetchChecklist(symbol);
   }, [symbol, fetchChecklist, showWarning]);
 
@@ -166,19 +168,21 @@ export function StockChecklist() {
                   disabled={loading}
                 />
                 <div className="btn-split">
-                  <button type="submit" className="btn-primary" disabled={loading}>
+                  <Button type="submit" variant="primary" size="sm" disabled={loading}>
                     {loading ? '...' : 'Go'}
-                  </button>
+                  </Button>
                   {checklist && (
-                    <button
+                    <Button
                       type="button"
-                      className="btn-primary btn-refresh"
+                      variant="primary"
+                      size="sm"
+                      className="btn-refresh"
                       onClick={refreshChecklist}
                       disabled={loading}
                       title="Refresh data"
                     >
                       &#8635;
-                    </button>
+                    </Button>
                   )}
                 </div>
               </div>
@@ -197,6 +201,15 @@ export function StockChecklist() {
           </div>
         </header>
 
+      {isAuthenticated && (
+        <div className="actions-bar">
+          <Button variant="secondary" size="sm" onClick={() => setSidebarOpen(!sidebarOpen)}>
+            ☰ Watchlists
+          </Button>
+          {checklist && <AddToWatchlistButton symbol={checklist.symbol} />}
+        </div>
+      )}
+
       {loading && <div className="loading-overlay" />}
 
       {!checklist && !loading && (
@@ -207,11 +220,6 @@ export function StockChecklist() {
 
       {checklist && (
         <div className="checklist-results">
-          {isAuthenticated && (
-            <div className="results-actions">
-              <AddToWatchlistButton symbol={checklist.symbol} />
-            </div>
-          )}
 
           <div className="content-layout">
             <div className="content-main">
@@ -234,9 +242,11 @@ export function StockChecklist() {
                 <AnalystSection analystData={checklist.analystData} currentPrice={checklist.price} />
               )}
 
-              {checklist.calendarEvents && (
-                <CalendarSection calendarEvents={checklist.calendarEvents} />
-              )}
+              <CalendarSection
+                catalystEvents={checklist.catalystEvents || []}
+                currentSymbol={checklist.symbol}
+                onSelectSymbol={handleSelectSymbol}
+              />
 
               {checklist.news && checklist.news.length > 0 && (
                 <NewsSection news={checklist.news} summary={checklist.newsSummary} />
