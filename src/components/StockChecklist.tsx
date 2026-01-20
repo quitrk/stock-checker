@@ -255,6 +255,15 @@ export function StockChecklist() {
           </div>
         </div>
       )}
+
+      <footer className="app-footer">
+        <span className="footer-disclaimer">
+          For informational purposes only. Not financial advice. Do your own research before investing.
+        </span>
+        <a href="https://buymeacoffee.com/thrillful" target="_blank" rel="noopener noreferrer">
+          Like it? Support me!
+        </a>
+      </footer>
     </div>
   );
 }
