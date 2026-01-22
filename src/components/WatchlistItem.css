@@ -1,0 +1,205 @@
+.watchlist-group {
+  border-bottom: 1px solid var(--border-color);
+}
+
+.watchlist-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  font-size: 1rem;
+  background: none;
+  color: var(--text-primary);
+  cursor: pointer;
+  user-select: none;
+}
+
+.watchlist-header:hover {
+  background: var(--surface-hover, #333);
+}
+
+.watchlist-header .expand-icon {
+  font-size: 0.6rem;
+  color: var(--text-secondary);
+}
+
+.watchlist-header .name {
+  flex: 1;
+  font-weight: 500;
+}
+
+.watchlist-header .badge-default {
+  font-size: 0.65rem;
+  padding: 0.125rem 0.5rem;
+  background: var(--primary);
+  color: white;
+  border-radius: 4px;
+}
+
+.watchlist-header .delete-btn {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  background: none;
+  border: 1px solid var(--danger, #ef4444);
+  border-radius: 4px;
+  color: var(--danger, #ef4444);
+  cursor: pointer;
+}
+
+.watchlist-header .delete-btn:hover {
+  background: var(--danger, #ef4444);
+  color: white;
+}
+
+.watchlist-stocks {
+  background: var(--background);
+}
+
+.watchlist-stocks .loading,
+.watchlist-stocks .empty {
+  padding: 0.75rem 1rem;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.stock-header {
+  display: flex;
+  align-items: center;
+  padding: 0.5rem 1.5rem 0.5rem 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+  gap: 0.5rem;
+}
+
+.stock-header .header-logo-spacer {
+  width: 20px;
+  min-width: 20px;
+}
+
+.stock-header .header-col {
+  padding: 0.25rem 0;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.stock-header .header-col:hover {
+  color: var(--text-primary);
+}
+
+.stock-header .header-col.active {
+  color: var(--primary);
+}
+
+.stock-header .header-col.symbol {
+  flex: 1;
+  text-align: left;
+}
+
+.stock-header .header-col.weight {
+  width: 50px;
+  text-align: right;
+}
+
+.stock-header .header-col.price {
+  flex: 1;
+  text-align: right;
+}
+
+.stock-header .header-col.change {
+  width: 55px;
+  text-align: right;
+}
+
+.stock-header.has-remove .header-col.change {
+  margin-right: 2.5rem; /* space for remove button */
+}
+
+.stock-row {
+  display: flex;
+  align-items: center;
+}
+
+.stock-row .stock-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1rem 0.6rem 1.5rem;
+  font-size: 0.95rem;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  text-align: left;
+  cursor: pointer;
+}
+
+.stock-row .stock-btn:hover {
+  background: var(--surface-hover, #333);
+}
+
+.stock-row .stock-btn.full-width {
+  padding-right: 1.5rem;
+}
+
+.stock-row .stock-logo {
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+  border-radius: 4px;
+  object-fit: contain;
+  background: var(--surface-hover, #333);
+}
+
+.stock-row .symbol {
+  flex: 1;
+  font-weight: 600;
+}
+
+.stock-row .weight {
+  width: 50px;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  text-align: right;
+}
+
+.stock-row .price {
+  flex: 1;
+  color: var(--text-secondary);
+  text-align: right;
+}
+
+.stock-row .change {
+  width: 55px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  text-align: right;
+}
+
+.stock-row .change.up {
+  color: #10b981;
+}
+
+.stock-row .change.down {
+  color: #ef4444;
+}
+
+.stock-row .remove-btn {
+  padding: 0.75rem 1rem;
+  font-size: 1.4rem;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.stock-row .remove-btn:hover {
+  color: #ef4444;
+}

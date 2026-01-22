@@ -1,6 +1,7 @@
 import { randomUUID } from 'crypto';
 import { getCached, setCache, deleteCache } from './CacheService.js';
 import { YahooFinanceProvider } from './providers/YahooFinanceProvider.js';
+import { SYSTEM_USER_ID } from '../constants/system.js';
 import type { Watchlist, WatchlistSummary, WatchlistStock, WatchlistWithStocks } from '../types/watchlist.js';
 
 const MAX_WATCHLISTS_PER_USER = 20;
@@ -68,6 +69,12 @@ export class WatchlistService {
   async getWatchlistWithStocks(watchlistId: string): Promise<WatchlistWithStocks | null> {
     const watchlist = await this.getWatchlist(watchlistId);
     if (!watchlist) return null;
+
+    // For system watchlists, use pre-cached stock data (no Yahoo API call)
+    if (watchlist.userId === SYSTEM_USER_ID) {
+      const cachedStocks = await getCached<WatchlistStock[]>(`system-watchlist:${watchlistId}:stocks`);
+      return { ...watchlist, stocks: cachedStocks || [] };
+    }
 
     const stocks = await this.getStocksData(watchlist.symbols);
     return { ...watchlist, stocks };
@@ -199,5 +206,58 @@ export class WatchlistService {
     await setCache(`watchlist:${watchlistId}`, watchlist, 0);
     console.log(`[Watchlist] Removed ${upperSymbol} from watchlist ${watchlistId}`);
     return watchlist;
+  }
+
+  // System watchlist methods (for default ETF watchlists)
+
+  async getSystemWatchlists(): Promise<WatchlistSummary[]> {
+    const systemWatchlistIds = await getCached<string[]>(`user:${SYSTEM_USER_ID}:watchlists`) || [];
+
+    const summaries: WatchlistSummary[] = [];
+    for (const id of systemWatchlistIds) {
+      const watchlist = await getCached<Watchlist>(`watchlist:${id}`);
+      if (watchlist) {
+        summaries.push({
+          id: watchlist.id,
+          name: watchlist.name,
+          symbols: watchlist.symbols,
+          updatedAt: watchlist.updatedAt,
+          isSystem: true,
+        });
+      }
+    }
+
+    return summaries;
+  }
+
+  async upsertSystemWatchlist(id: string, name: string, symbols: string[]): Promise<Watchlist> {
+    const existing = await this.getWatchlist(id);
+    const now = new Date().toISOString();
+
+    const watchlist: Watchlist = {
+      id,
+      userId: SYSTEM_USER_ID,
+      name,
+      symbols,
+      createdAt: existing?.createdAt || now,
+      updatedAt: now,
+      isSystem: true,
+    };
+
+    await setCache(`watchlist:${id}`, watchlist, 0);
+
+    // Ensure watchlist is in system user's list
+    const systemWatchlistIds = await getCached<string[]>(`user:${SYSTEM_USER_ID}:watchlists`) || [];
+    if (!systemWatchlistIds.includes(id)) {
+      await setCache(`user:${SYSTEM_USER_ID}:watchlists`, [...systemWatchlistIds, id], 0);
+    }
+
+    console.log(`[Watchlist] Upserted system watchlist "${name}" (${id}) with ${symbols.length} symbols`);
+    return watchlist;
+  }
+
+  async setSystemWatchlistStocks(watchlistId: string, stocks: WatchlistStock[]): Promise<void> {
+    await setCache(`system-watchlist:${watchlistId}:stocks`, stocks, 0);
+    console.log(`[Watchlist] Cached ${stocks.length} stocks for system watchlist ${watchlistId}`);
   }
 }

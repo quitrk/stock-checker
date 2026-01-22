@@ -5,6 +5,7 @@ export interface Watchlist {
   symbols: string[];
   createdAt: string;
   updatedAt: string;
+  isSystem?: boolean;
 }
 
 export interface WatchlistSummary {
@@ -12,6 +13,7 @@ export interface WatchlistSummary {
   name: string;
   symbols: string[];
   updatedAt: string;
+  isSystem?: boolean;
 }
 
 export interface WatchlistStock {
@@ -21,6 +23,7 @@ export interface WatchlistStock {
   priceChange: number;
   priceChangePercent: number;
   logoUrl: string | null;
+  weight?: number; // ETF holding weight (0-1), only for system watchlists
 }
 
 export interface WatchlistWithStocks extends Watchlist {

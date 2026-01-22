@@ -24,13 +24,7 @@ export async function getCached<T>(key: string): Promise<T | null> {
   if (!client) return null;
 
   try {
-    const data = await client.get<T>(key);
-    if (data) {
-      console.log(`[Cache] HIT: ${key}`);
-      return data;
-    }
-    console.log(`[Cache] MISS: ${key}`);
-    return null;
+    return await client.get<T>(key);
   } catch (error) {
     console.error('[Cache] Error reading cache:', error);
     return null;
@@ -43,13 +37,7 @@ export async function setCache<T>(key: string, data: T, ttl?: number): Promise<v
 
   try {
     const expirySeconds = ttl ?? CACHE_TTL_SECONDS;
-    if (expirySeconds === 0) {
-      await client.set(key, data);
-      console.log(`[Cache] SET: ${key} (no expiry)`);
-    } else {
-      await client.set(key, data, { ex: expirySeconds });
-      console.log(`[Cache] SET: ${key} (TTL: ${expirySeconds}s)`);
-    }
+    await client.set(key, data, expirySeconds === 0 ? undefined : { ex: expirySeconds });
   } catch (error) {
     console.error('[Cache] Error writing cache:', error);
   }
@@ -61,7 +49,6 @@ export async function deleteCache(key: string): Promise<void> {
 
   try {
     await client.del(key);
-    console.log(`[Cache] DELETE: ${key}`);
   } catch (error) {
     console.error('[Cache] Error deleting cache:', error);
   }

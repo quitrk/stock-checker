@@ -1,0 +1,31 @@
+name: Update ETF Watchlists
+
+on:
+  schedule:
+    # Run at 6 AM UTC (1 AM EST) on weekdays
+    - cron: '0 6 * * 1-5'
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  update-watchlists:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ETF watchlist update script
+        env:
+          UPSTASH_REDIS_REST_URL: ${{ secrets.UPSTASH_REDIS_REST_URL }}
+          UPSTASH_REDIS_REST_TOKEN: ${{ secrets.UPSTASH_REDIS_REST_TOKEN }}
+          LOGOKIT_TOKEN: ${{ secrets.LOGOKIT_TOKEN }}
+        run: npx tsx scripts/update-etf-watchlists.ts

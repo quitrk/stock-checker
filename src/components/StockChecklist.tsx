@@ -10,7 +10,7 @@ import type {
   ChecklistStatus,
 } from '../../lib/types/index.js';
 import { AnalystSection } from './AnalystSection';
-import { CalendarSection } from './CalendarSection';
+import { CatalystsSection } from './CatalystsSection';
 import { NewsSection } from './NewsSection';
 import { Expander } from './Expander';
 import { Button } from './Button';
@@ -242,7 +242,7 @@ export function StockChecklist() {
                 <AnalystSection analystData={checklist.analystData} currentPrice={checklist.price} />
               )}
 
-              <CalendarSection
+              <CatalystsSection
                 catalystEvents={checklist.catalystEvents || []}
                 currentSymbol={checklist.symbol}
                 onSelectSymbol={handleSelectSymbol}

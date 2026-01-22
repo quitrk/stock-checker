@@ -3,9 +3,9 @@ import type { CatalystEvent, CatalystEventType } from '../../lib/types/index.js'
 import { useApp } from '../contexts/AppContext';
 import { getWatchlistCatalysts } from '../api/watchlistApi';
 import { Expander } from './Expander';
-import './CalendarSection.css';
+import './CatalystsSection.css';
 
-interface CalendarSectionProps {
+interface CatalystsSectionProps {
   catalystEvents: CatalystEvent[];
   currentSymbol: string;
   onSelectSymbol?: (symbol: string) => void;
@@ -65,7 +65,7 @@ function formatDate(dateStr: string): string {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-export function CalendarSection({ catalystEvents, currentSymbol, onSelectSymbol }: CalendarSectionProps) {
+export function CatalystsSection({ catalystEvents, currentSymbol, onSelectSymbol }: CatalystsSectionProps) {
   const { watchlist } = useApp();
   const [selectedSource, setSelectedSource] = useState<string>('symbol'); // 'symbol' or watchlist ID
   const [watchlistEvents, setWatchlistEvents] = useState<CatalystEvent[]>([]);
@@ -93,7 +93,8 @@ export function CalendarSection({ catalystEvents, currentSymbol, onSelectSymbol 
 
   // Use watchlist events if a watchlist is selected, otherwise use prop events
   const activeEvents = selectedSource === 'symbol' ? catalystEvents : watchlistEvents;
-  const watchlists = watchlist.watchlists;
+  const userWatchlists = watchlist.watchlists;
+  const defaultWatchlists = watchlist.defaultWatchlists;
 
   // Filter to only future events within 1 year and sort by date
   const oneYearFromNow = new Date();
@@ -118,7 +119,7 @@ export function CalendarSection({ catalystEvents, currentSymbol, onSelectSymbol 
     .slice(0, 5);
 
   // Show section if we have events OR if user has watchlists to select from
-  const hasWatchlists = watchlists.length > 0;
+  const hasWatchlists = userWatchlists.length > 0 || defaultWatchlists.length > 0;
   if (futureEvents.length === 0 && recentPastEvents.length === 0 && !hasWatchlists && !loading) {
     return null;
   }
@@ -144,11 +145,20 @@ export function CalendarSection({ catalystEvents, currentSymbol, onSelectSymbol 
             <optgroup label="Current Stock">
               <option value="symbol">{currentSymbol}</option>
             </optgroup>
-            <optgroup label="My Watchlists">
-              {watchlists.map(wl => (
-                <option key={wl.id} value={wl.id}>{wl.name}</option>
-              ))}
-            </optgroup>
+            {defaultWatchlists.length > 0 && (
+              <optgroup label="ETF Watchlists">
+                {defaultWatchlists.map(wl => (
+                  <option key={wl.id} value={wl.id}>{wl.name}</option>
+                ))}
+              </optgroup>
+            )}
+            {userWatchlists.length > 0 && (
+              <optgroup label="My Watchlists">
+                {userWatchlists.map(wl => (
+                  <option key={wl.id} value={wl.id}>{wl.name}</option>
+                ))}
+              </optgroup>
+            )}
           </select>
         </div>
       )}
@@ -190,12 +200,13 @@ export function CalendarSection({ catalystEvents, currentSymbol, onSelectSymbol 
                   </span>
                 </>
               );
+              const uniqueKey = `${event.symbol}-${event.id}`;
               return event.sourceUrl ? (
-                <a key={event.id} href={event.sourceUrl} target="_blank" rel="noopener noreferrer" className="calendar-event clickable">
+                <a key={uniqueKey} href={event.sourceUrl} target="_blank" rel="noopener noreferrer" className="calendar-event clickable">
                   {content}
                 </a>
               ) : (
-                <div key={event.id} className="calendar-event">
+                <div key={uniqueKey} className="calendar-event">
                   {content}
                 </div>
               );
@@ -235,12 +246,13 @@ export function CalendarSection({ catalystEvents, currentSymbol, onSelectSymbol 
                   </span>
                 </>
               );
+              const uniqueKey = `${event.symbol}-${event.id}`;
               return event.sourceUrl ? (
-                <a key={event.id} href={event.sourceUrl} target="_blank" rel="noopener noreferrer" className="calendar-event past-event clickable">
+                <a key={uniqueKey} href={event.sourceUrl} target="_blank" rel="noopener noreferrer" className="calendar-event past-event clickable">
                   {content}
                 </a>
               ) : (
-                <div key={event.id} className="calendar-event past-event">
+                <div key={uniqueKey} className="calendar-event past-event">
                   {content}
                 </div>
               );

@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { WatchlistService } from '../services/WatchlistService.js';
 import { CatalystService } from '../services/CatalystService.js';
 import { requireAuth, getAuthUser } from '../middleware/auth.js';
+import { SYSTEM_USER_ID } from '../constants/system.js';
 
 const watchlist = new Hono();
 const watchlistService = new WatchlistService();
@@ -31,6 +32,12 @@ watchlist.post('/', requireAuth, async (c) => {
   }
 });
 
+// Get default (system) watchlists - public endpoint
+watchlist.get('/defaults', async (c) => {
+  const defaults = await watchlistService.getSystemWatchlists();
+  return c.json({ watchlists: defaults });
+});
+
 // Get a single watchlist with stock data (public)
 watchlist.get('/:id', async (c) => {
   const { id } = c.req.param();
@@ -43,8 +50,12 @@ watchlist.get('/:id', async (c) => {
   // Check if current user owns this watchlist
   const user = await getAuthUser(c);
   const isOwner = user?.id === result.userId;
+  const isSystem = result.userId === SYSTEM_USER_ID;
 
-  return c.json({ watchlist: result, isOwner });
+  return c.json({
+    watchlist: { ...result, isSystem },
+    isOwner,
+  });
 });
 
 // Get catalyst events for all symbols in a watchlist (public)

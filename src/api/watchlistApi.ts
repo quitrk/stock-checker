@@ -16,6 +16,17 @@ export async function getWatchlists(): Promise<WatchlistSummary[]> {
   return data.watchlists;
 }
 
+export async function getDefaultWatchlists(): Promise<WatchlistSummary[]> {
+  const response = await fetch(`${API_BASE}/defaults`);
+
+  if (!response.ok) {
+    throw new Error('Failed to fetch default watchlists');
+  }
+
+  const data = await response.json();
+  return data.watchlists;
+}
+
 export async function createWatchlist(name: string): Promise<Watchlist> {
   const response = await fetch(API_BASE, {
     method: 'POST',

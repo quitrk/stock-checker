@@ -4,11 +4,13 @@ import type { Watchlist, WatchlistSummary, WatchlistWithStocks } from '../../lib
 
 export interface UseWatchlistReturn {
   watchlists: WatchlistSummary[];
+  defaultWatchlists: WatchlistSummary[];
   isLoading: boolean;
   error: string | null;
   activeWatchlist: WatchlistWithStocks | null;
   isOwner: boolean;
   fetchWatchlists: () => Promise<void>;
+  fetchDefaultWatchlists: () => Promise<void>;
   createWatchlist: (name: string) => Promise<Watchlist>;
   deleteWatchlist: (id: string) => Promise<void>;
   renameWatchlist: (id: string, name: string) => Promise<void>;
@@ -21,6 +23,7 @@ export interface UseWatchlistReturn {
 
 export function useWatchlist(): UseWatchlistReturn {
   const [watchlists, setWatchlists] = useState<WatchlistSummary[]>([]);
+  const [defaultWatchlists, setDefaultWatchlists] = useState<WatchlistSummary[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeWatchlist, setActiveWatchlist] = useState<WatchlistWithStocks | null>(null);
@@ -37,6 +40,15 @@ export function useWatchlist(): UseWatchlistReturn {
       setError(err instanceof Error ? err.message : 'Failed to fetch watchlists');
     } finally {
       setIsLoading(false);
+    }
+  }, []);
+
+  const fetchDefaultWatchlists = useCallback(async () => {
+    try {
+      const data = await api.getDefaultWatchlists();
+      setDefaultWatchlists(data);
+    } catch (err) {
+      console.error('Failed to fetch default watchlists:', err);
     }
   }, []);
 
@@ -144,11 +156,13 @@ export function useWatchlist(): UseWatchlistReturn {
 
   return {
     watchlists,
+    defaultWatchlists,
     isLoading,
     error,
     activeWatchlist,
     isOwner,
     fetchWatchlists,
+    fetchDefaultWatchlists,
     createWatchlist,
     deleteWatchlist,
     renameWatchlist,

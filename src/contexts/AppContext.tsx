@@ -16,6 +16,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (isAuthenticated) {
       watchlist.fetchWatchlists();
+      watchlist.fetchDefaultWatchlists();
     } else {
       watchlist.reset();
     }

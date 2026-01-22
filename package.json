@@ -9,7 +9,8 @@
     "dev:frontend": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0"
+    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "update-etf-watchlists": "tsx scripts/update-etf-watchlists.ts"
   },
   "dependencies": {
     "@hono/node-server": "^1.19.9",
@@ -19,6 +20,7 @@
     "hono": "^4.11.4",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "xlsx": "^0.18.5",
     "yahoo-finance2": "^3.11.2"
   },
   "devDependencies": {

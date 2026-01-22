@@ -33,15 +33,7 @@ export class ChecklistService {
 
   async generateChecklist(symbol: string, skipCache = false): Promise<ChecklistResult> {
     const upperSymbol = symbol.toUpperCase();
-
-    // Check cache first (unless skipping)
-    if (!skipCache) {
-      const cached = await getCached<ChecklistResult>(cacheKey('checklist', upperSymbol));
-      // Auto-refresh if cached data is missing catalystEvents field
-      if (cached && cached.catalystEvents !== undefined) {
-        return cached;
-      }
-    }
+    // Cache disabled for symbol lookups - always fetch fresh data
 
     const errors: string[] = [];
     let marketData: MarketData | null = null;

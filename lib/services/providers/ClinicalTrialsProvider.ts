@@ -33,6 +33,17 @@ interface ClinicalTrialsResponse {
  */
 export class ClinicalTrialsProvider {
   private readonly baseUrl = 'https://clinicaltrials.gov/api/v2/studies';
+  private readonly MIN_REQUEST_INTERVAL = 300; // 300ms between requests
+  private lastRequestTime = 0;
+
+  private async throttle(): Promise<void> {
+    const now = Date.now();
+    const elapsed = now - this.lastRequestTime;
+    if (elapsed < this.MIN_REQUEST_INTERVAL) {
+      await new Promise(r => setTimeout(r, this.MIN_REQUEST_INTERVAL - elapsed));
+    }
+    this.lastRequestTime = Date.now();
+  }
 
   /**
    * Check if a stock's industry suggests it's biotech/pharma
@@ -58,7 +69,6 @@ export class ClinicalTrialsProvider {
         .replace(/,?\s*(Inc\.?|Corp\.?|Corporation|Ltd\.?|LLC|PLC|Limited|Co\.?)$/i, '')
         .trim();
 
-      console.log(`[ClinicalTrials] Searching trials for "${searchName}"`);
 
       const params = new URLSearchParams({
         'query.spons': searchName,
@@ -66,6 +76,7 @@ export class ClinicalTrialsProvider {
         'pageSize': '20',
       });
 
+      await this.throttle();
       const response = await fetch(`${this.baseUrl}?${params}`, {
         headers: { 'Accept': 'application/json' },
       });
@@ -77,8 +88,6 @@ export class ClinicalTrialsProvider {
 
       const data = (await response.json()) as ClinicalTrialsResponse;
       const studies = data.studies || [];
-
-      console.log(`[ClinicalTrials] Found ${studies.length} active trials for ${searchName}`);
 
       for (const study of studies) {
         const protocol = study.protocolSection;
@@ -127,8 +136,6 @@ export class ClinicalTrialsProvider {
 
       // Sort by date
       events.sort((a, b) => a.date.localeCompare(b.date));
-
-      console.log(`[ClinicalTrials] Returning ${events.length} trial events for ${symbol}`);
       return events;
     } catch (error) {
       console.error(`[ClinicalTrials] Error fetching trials for ${symbol}:`, error);

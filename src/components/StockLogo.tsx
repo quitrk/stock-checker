@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 
-const REQUEST_DELAY_MS = 100;
+const REQUEST_DELAY_MS = 200;
 
 type QueueItem = {
   url: string;
@@ -60,7 +60,7 @@ export function StockLogo({ url, alt = '', className }: StockLogoProps) {
   }, [url]);
 
   if (!shouldLoad || hasError) {
-    return null;
+    return <div className={className} />;
   }
 
   return (

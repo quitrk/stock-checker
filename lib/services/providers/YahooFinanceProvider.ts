@@ -44,11 +44,9 @@ export class YahooFinanceProvider implements IFinanceProvider {
   private async getQuoteSummary(symbol: string): Promise<QuoteSummaryResult> {
     const cached = this.quoteSummaryCache.get(symbol);
     if (cached && Date.now() - cached.timestamp < this.CACHE_TTL) {
-      console.log(`[YahooFinance] Using cached quoteSummary for ${symbol}`);
       return cached.data;
     }
 
-    console.log(`[YahooFinance] Fetching all modules for ${symbol} in single call...`);
     const data = await this.retry(() => this.yahooFinance.quoteSummary(symbol, {
       modules: [...this.ALL_MODULES],
     }));
@@ -86,17 +84,32 @@ export class YahooFinanceProvider implements IFinanceProvider {
                            errorMsg.includes('Too Many') ||
                            errorMsg.includes('rate limit') ||
                            errorMsg.includes('blocked');
+        const isServerError = errorMsg.includes('500') ||
+                              errorMsg.includes('502') ||
+                              errorMsg.includes('503') ||
+                              errorMsg.includes('HTTPError');
+        const isRetryable = isRateLimit || isServerError;
+
+        // Extract a clean error message (avoid logging full HTML responses)
+        let cleanErrorMsg = errorMsg;
+        if (errorMsg.includes('<!doctype') || errorMsg.includes('<html')) {
+          const statusMatch = errorMsg.match(/\b(4\d{2}|5\d{2})\b/);
+          cleanErrorMsg = statusMatch ? `HTTP ${statusMatch[1]} error` : 'HTTP error (HTML response)';
+        } else if (errorMsg.length > 200) {
+          cleanErrorMsg = errorMsg.substring(0, 200) + '...';
+        }
 
         if (i === retries - 1) {
-          console.error(`[YahooFinance] All retries exhausted. Final error:`, errorMsg);
+          console.error(`[YahooFinance] All retries exhausted. Final error:`, cleanErrorMsg);
           if (isRateLimit) {
             throw new ProviderRateLimitError('yahoo', delay);
           }
           throw error;
         }
-        if (!isRateLimit) throw error;
+        if (!isRetryable) throw error;
 
-        console.log(`[YahooFinance] Rate limited, retrying in ${delay}ms... (attempt ${i + 2}/${retries})`);
+        const reason = isRateLimit ? 'Rate limited' : 'Server error';
+        console.log(`[YahooFinance] ${reason}, retrying in ${delay}ms... (attempt ${i + 2}/${retries})`);
         await new Promise(r => setTimeout(r, delay));
         delay *= 2;
       }
@@ -333,8 +346,15 @@ export class YahooFinanceProvider implements IFinanceProvider {
 
       console.log(`[YahooFinance] Got ${news.length} relevant news items for ${symbol} (filtered from ${result.news?.length || 0})`);
       return news;
-    } catch (error) {
-      console.error(`[YahooFinance] Error fetching news for ${symbol}:`, error);
+    } catch (error: any) {
+      const errorMsg = error?.message || String(error);
+      // Extract useful info from HTML error responses
+      let cleanMsg = errorMsg;
+      if (errorMsg.includes('<!doctype') || errorMsg.includes('<html')) {
+        const statusMatch = errorMsg.match(/\b(4\d{2}|5\d{2})\b/);
+        cleanMsg = statusMatch ? `HTTP ${statusMatch[1]} error` : 'HTTP error (HTML response)';
+      }
+      console.error(`[YahooFinance] Error fetching news for ${symbol}:`, cleanMsg);
       return [];
     }
   }
@@ -483,8 +503,6 @@ export class YahooFinanceProvider implements IFinanceProvider {
   }
 
   async getCatalystEvents(symbol: string): Promise<CatalystEvent[]> {
-    console.log(`[YahooFinance] Getting catalyst events for ${symbol}`);
-
     const events: CatalystEvent[] = [];
 
     try {
@@ -579,5 +597,26 @@ export class YahooFinanceProvider implements IFinanceProvider {
     }
 
     return events;
+  }
+
+  async getETFHoldings(etfSymbol: string): Promise<{ symbol: string; name: string; weight: number }[]> {
+    console.log(`[YahooFinance] Fetching ETF holdings for ${etfSymbol}`);
+
+    try {
+      const data = await this.retry(() => this.yahooFinance.quoteSummary(etfSymbol, {
+        modules: ['topHoldings'],
+      }));
+
+      const holdings = data.topHoldings?.holdings || [];
+
+      return holdings.map((h: any) => ({
+        symbol: h.symbol || '',
+        name: h.holdingName || '',
+        weight: h.holdingPercent || 0,
+      }));
+    } catch (error) {
+      console.error(`[YahooFinance] Error fetching ETF holdings for ${etfSymbol}:`, error);
+      return [];
+    }
   }
 }

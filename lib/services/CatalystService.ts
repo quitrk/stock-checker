@@ -34,11 +34,16 @@ export class CatalystService {
     if (symbols.length === 0) return [];
 
     const upperSymbols = symbols.map(s => s.toUpperCase());
-    console.log(`[CatalystService] Fetching catalysts for ${upperSymbols.length} symbols...`);
-
     const allEvents: CatalystEvent[] = [];
     const uncachedSymbols: string[] = [];
     const cachedData = new Map<string, { companyName: string; industry: string }>();
+
+    // Stats for aggregate logging
+    let cachedEventsCount = 0;
+    let fetchedEventsCount = 0;
+    let cacheUpdates = 0;
+    let cacheCreates = 0;
+    let fetchErrors = 0;
 
     // Step 1: Check cache for each symbol
     const cacheChecks = await Promise.all(
@@ -52,11 +57,11 @@ export class CatalystService {
       if (cached?.catalystEvents && cached.catalystEvents.length >= 0) {
         // Use cached catalyst events
         allEvents.push(...cached.catalystEvents);
+        cachedEventsCount += cached.catalystEvents.length;
         cachedData.set(symbol, {
           companyName: cached.companyName,
           industry: cached.industry,
         });
-        console.log(`[CatalystService] Using ${cached.catalystEvents.length} cached events for ${symbol}`);
       } else {
         uncachedSymbols.push(symbol);
       }
@@ -64,14 +69,14 @@ export class CatalystService {
 
     // Step 2: For uncached symbols, fetch market data to get industry/companyName
     if (uncachedSymbols.length > 0) {
-      console.log(`[CatalystService] Fetching data for ${uncachedSymbols.length} uncached symbols...`);
-
       // Get market data in batch
       const marketDataMap = await this.yahooProvider.getMultipleQuotes(uncachedSymbols);
 
       // Step 3: Fetch catalysts with controlled concurrency
       const CONCURRENCY = 3;
       const results: { symbol: string; events: CatalystEvent[]; companyName: string; industry: string }[] = [];
+
+      const BATCH_DELAY = 1000; // 1 second between batches
 
       for (let i = 0; i < uncachedSymbols.length; i += CONCURRENCY) {
         const batch = uncachedSymbols.slice(i, i + CONCURRENCY);
@@ -82,30 +87,36 @@ export class CatalystService {
             const industry = marketData?.industry ?? 'Unknown';
 
             try {
-              const events = await this.getCatalystEvents(symbol, companyName, industry);
-              return { symbol, events, companyName, industry };
+              const events = await this.getCatalystEventsQuiet(symbol, companyName, industry);
+              return { symbol, events, companyName, industry, error: false };
             } catch (error) {
-              console.error(`[CatalystService] Error fetching catalysts for ${symbol}:`, error);
-              return { symbol, events: [], companyName, industry };
+              return { symbol, events: [], companyName, industry, error: true };
             }
           })
         );
-        results.push(...batchResults);
+        for (const r of batchResults) {
+          results.push({ symbol: r.symbol, events: r.events, companyName: r.companyName, industry: r.industry });
+          if (r.error) fetchErrors++;
+        }
+
+        // Delay between batches to avoid rate limits
+        if (i + CONCURRENCY < uncachedSymbols.length) {
+          await new Promise(resolve => setTimeout(resolve, BATCH_DELAY));
+        }
       }
 
       // Step 4: Update cache and collect events
       for (const { symbol, events, companyName, industry } of results) {
         allEvents.push(...events);
+        fetchedEventsCount += events.length;
 
         // Update cache with catalyst events
         const existingCache = await getCached<ChecklistResult>(cacheKey('checklist', symbol));
         if (existingCache) {
-          // Update existing cache entry with new catalyst events
           existingCache.catalystEvents = events;
           await setCache(cacheKey('checklist', symbol), existingCache);
-          console.log(`[CatalystService] Updated cache for ${symbol} with ${events.length} events`);
+          cacheUpdates++;
         } else {
-          // Create minimal cache entry for catalysts
           const minimalEntry: Partial<ChecklistResult> = {
             symbol,
             companyName,
@@ -114,7 +125,7 @@ export class CatalystService {
             timestamp: new Date().toISOString(),
           };
           await setCache(cacheKey('checklist', symbol), minimalEntry);
-          console.log(`[CatalystService] Created minimal cache for ${symbol} with ${events.length} events`);
+          cacheCreates++;
         }
       }
     }
@@ -123,7 +134,69 @@ export class CatalystService {
     const deduped = this.deduplicateEvents(allEvents);
     deduped.sort((a, b) => a.date.localeCompare(b.date));
 
-    console.log(`[CatalystService] Total catalyst events for ${upperSymbols.length} symbols: ${deduped.length}`);
+    // Aggregate log
+    const cachedCount = upperSymbols.length - uncachedSymbols.length;
+    const parts = [`${upperSymbols.length} symbols`, `${deduped.length} events`];
+    if (cachedCount > 0) parts.push(`${cachedCount} cached (${cachedEventsCount} events)`);
+    if (uncachedSymbols.length > 0) parts.push(`${uncachedSymbols.length} fetched (${fetchedEventsCount} events)`);
+    if (fetchErrors > 0) parts.push(`${fetchErrors} errors`);
+    console.log(`[CatalystService] ${parts.join(', ')}`);
+
+    return deduped;
+  }
+
+  /**
+   * Internal quiet version of getCatalystEvents (no per-symbol logging)
+   */
+  private async getCatalystEventsQuiet(
+    symbol: string,
+    companyName: string,
+    industry: string
+  ): Promise<CatalystEvent[]> {
+    const allEvents: CatalystEvent[] = [];
+
+    // Fetch from all sources in parallel
+    const promises: Promise<{ source: string; events: CatalystEvent[] }>[] = [];
+
+    // Yahoo Finance - always fetch
+    promises.push(
+      this.yahooProvider.getCatalystEvents(symbol)
+        .then(events => ({ source: 'yahoo', events }))
+        .catch(() => ({ source: 'yahoo', events: [] }))
+    );
+
+    // SEC - always fetch
+    promises.push(
+      this.secService.getCatalystEvents(symbol, industry)
+        .then(events => ({ source: 'sec', events }))
+        .catch(() => ({ source: 'sec', events: [] }))
+    );
+
+    // ClinicalTrials.gov - only for biotech/pharma stocks
+    if (ClinicalTrialsProvider.isBiotechIndustry(industry)) {
+      promises.push(
+        this.clinicalTrialsProvider.getCatalystEvents(symbol, companyName)
+          .then(events => ({ source: 'clinicaltrials', events }))
+          .catch(() => ({ source: 'clinicaltrials', events: [] }))
+      );
+    }
+
+    // Finnhub - only if configured
+    if (this.finnhubProvider.isConfigured()) {
+      promises.push(
+        this.finnhubProvider.getCatalystEvents(symbol)
+          .then(events => ({ source: 'finnhub', events }))
+          .catch(() => ({ source: 'finnhub', events: [] }))
+      );
+    }
+
+    const results = await Promise.all(promises);
+    for (const result of results) {
+      allEvents.push(...result.events);
+    }
+
+    const deduped = this.deduplicateEvents(allEvents);
+    deduped.sort((a, b) => a.date.localeCompare(b.date));
     return deduped;
   }
 
