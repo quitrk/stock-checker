@@ -15,7 +15,6 @@
 
 .watchlist-sidebar.open {
   transform: translateX(0);
-  overflow-y: auto;
 }
 
 .sidebar-login,
@@ -71,6 +70,51 @@
 
 .watchlist-stocks {
   background: var(--background);
+}
+
+.stock-header {
+  display: flex;
+  align-items: center;
+  padding: 0.5rem 1rem 0.5rem 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+  gap: 0.5rem;
+}
+
+.stock-header .header-col {
+  padding: 0.25rem 0;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.stock-header .header-col:hover {
+  color: var(--text-primary);
+}
+
+.stock-header .header-col.active {
+  color: var(--primary);
+}
+
+.stock-header .header-col.symbol {
+  min-width: 78px; /* logo (20px) + gap (0.5rem) + symbol width (50px) */
+  text-align: left;
+}
+
+.stock-header .header-col.price {
+  flex: 1;
+  text-align: left;
+}
+
+.stock-header .header-col.change {
+  min-width: 70px;
+  text-align: right;
+  margin-right: 2.5rem;
 }
 
 .watchlist-stocks .loading,
@@ -148,9 +192,15 @@
   color: #ef4444;
 }
 
-.add-btn {
+.watchlist-sidebar > .add-btn,
+.watchlist-sidebar > .create-watchlist-form {
   width: 100%;
   justify-content: flex-start;
+  border-top: 1px solid var(--border-color);
+  flex-shrink: 0;
+  padding: 0.75rem 1rem;
+  margin-bottom: 3.5rem; /* space for fixed footer */
+  background: #161618;
 }
 
 .create-form {
@@ -187,5 +237,10 @@
 
   .watchlist-sidebar.open {
     width: 100%;
+  }
+
+  .watchlist-sidebar > .add-btn,
+  .watchlist-sidebar > .create-watchlist-form {
+    margin-bottom: 4.5rem; /* space for stacked footer */
   }
 }

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useApp } from '../contexts/AppContext';
 import { useToast } from '../contexts/ToastContext';
@@ -6,6 +6,9 @@ import { Button } from './Button';
 import { ConfirmDialog } from './ConfirmDialog';
 import { CreateWatchlistForm } from './CreateWatchlistForm';
 import './WatchlistSidebar.css';
+
+type SortBy = 'symbol' | 'price' | 'change';
+type SortOrder = 'asc' | 'desc';
 
 interface WatchlistSidebarProps {
   isOpen: boolean;
@@ -20,6 +23,31 @@ export function WatchlistSidebar({ isOpen, onToggle, onSelectSymbol }: Watchlist
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
   const [removeSymbolTarget, setRemoveSymbolTarget] = useState<{ watchlistId: string; symbol: string } | null>(null);
+  const [sortBy, setSortBy] = useState<SortBy>('symbol');
+  const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
+
+  const handleSort = (column: SortBy) => {
+    if (sortBy === column) {
+      setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(column);
+      setSortOrder(column === 'symbol' ? 'asc' : 'desc');
+    }
+  };
+
+  const sortedStocks = useMemo(() => {
+    if (!watchlist.activeWatchlist?.stocks) return [];
+    const stocks = [...watchlist.activeWatchlist.stocks];
+    const multiplier = sortOrder === 'asc' ? 1 : -1;
+    switch (sortBy) {
+      case 'price':
+        return stocks.sort((a, b) => multiplier * ((a.price ?? 0) - (b.price ?? 0)));
+      case 'change':
+        return stocks.sort((a, b) => multiplier * ((a.priceChangePercent ?? 0) - (b.priceChangePercent ?? 0)));
+      default:
+        return stocks.sort((a, b) => multiplier * a.symbol.localeCompare(b.symbol));
+    }
+  }, [watchlist.activeWatchlist?.stocks, sortBy, sortOrder]);
 
   const handleToggleWatchlist = async (id: string) => {
     if (expandedId === id) {
@@ -108,7 +136,31 @@ export function WatchlistSidebar({ isOpen, onToggle, onSelectSymbol }: Watchlist
                   ) : !watchlist.activeWatchlist || watchlist.activeWatchlist.stocks.length === 0 ? (
                     <div className="empty">No stocks</div>
                   ) : (
-                    watchlist.activeWatchlist.stocks.map((stock) => (
+                    <>
+                      <div className="stock-header">
+                        <button
+                          type="button"
+                          className={`header-col symbol ${sortBy === 'symbol' ? 'active' : ''}`}
+                          onClick={() => handleSort('symbol')}
+                        >
+                          Symbol {sortBy === 'symbol' && (sortOrder === 'asc' ? '▲' : '▼')}
+                        </button>
+                        <button
+                          type="button"
+                          className={`header-col price ${sortBy === 'price' ? 'active' : ''}`}
+                          onClick={() => handleSort('price')}
+                        >
+                          Price {sortBy === 'price' && (sortOrder === 'asc' ? '▲' : '▼')}
+                        </button>
+                        <button
+                          type="button"
+                          className={`header-col change ${sortBy === 'change' ? 'active' : ''}`}
+                          onClick={() => handleSort('change')}
+                        >
+                          Change {sortBy === 'change' && (sortOrder === 'asc' ? '▲' : '▼')}
+                        </button>
+                      </div>
+                      {sortedStocks.map((stock) => (
                       <div key={stock.symbol} className="stock-row">
                         <button
                           type="button"
@@ -137,18 +189,20 @@ export function WatchlistSidebar({ isOpen, onToggle, onSelectSymbol }: Watchlist
                           ×
                         </button>
                       </div>
-                    ))
+                      ))}
+                    </>
                   )}
                 </div>
               )}
             </div>
           ))}
-
-          <CreateWatchlistForm
-            onSubmit={handleCreateWatchlist}
-            className="add-btn"
-          />
         </div>
+      )}
+      {isAuthenticated && (
+        <CreateWatchlistForm
+          onSubmit={handleCreateWatchlist}
+          className="add-btn"
+        />
       )}
       </aside>
       <ConfirmDialog

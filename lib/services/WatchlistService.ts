@@ -1,8 +1,7 @@
 import { randomUUID } from 'crypto';
-import { getCached, setCache, deleteCache, cacheKey } from './CacheService.js';
+import { getCached, setCache, deleteCache } from './CacheService.js';
 import { YahooFinanceProvider } from './providers/YahooFinanceProvider.js';
 import type { Watchlist, WatchlistSummary, WatchlistStock, WatchlistWithStocks } from '../types/watchlist.js';
-import type { ChecklistResult } from '../types/index.js';
 
 const MAX_WATCHLISTS_PER_USER = 20;
 const MAX_SYMBOLS_PER_WATCHLIST = 100;
@@ -86,57 +85,24 @@ export class WatchlistService {
     if (symbols.length === 0) return [];
 
     const stocks: WatchlistStock[] = [];
-    const uncachedSymbols: string[] = [];
 
-    // First, check cache for each symbol
-    for (const symbol of symbols) {
-      const cached = await getCached<ChecklistResult>(cacheKey('checklist', symbol));
-      if (cached && cached.priceChange !== undefined) {
-        stocks.push({
-          symbol: cached.symbol,
-          companyName: cached.companyName,
-          price: cached.price ?? 0,
-          priceChange: cached.priceChange ?? 0,
-          priceChangePercent: cached.priceChangePercent ?? 0,
-          logoUrl: getLogoUrl(cached.symbol),
-        });
-      } else {
-        uncachedSymbols.push(symbol);
-      }
-    }
+    try {
+      console.log(`[Watchlist] Fetching quotes for ${symbols.length} symbols`);
+      const quotes = await this.financeProvider.getMultipleQuotes(symbols);
 
-    // Batch fetch any symbols not in cache
-    if (uncachedSymbols.length > 0) {
-      console.log(`[Watchlist] Fetching ${uncachedSymbols.length} uncached symbols`);
-      try {
-        const quotes = await this.financeProvider.getMultipleQuotes(uncachedSymbols);
-        for (const symbol of uncachedSymbols) {
-          const data = quotes.get(symbol.toUpperCase());
-          if (data) {
-            stocks.push({
-              symbol: data.symbol,
-              companyName: data.companyName,
-              price: data.price,
-              priceChange: data.priceChange,
-              priceChangePercent: data.priceChangePercent,
-              logoUrl: getLogoUrl(data.symbol),
-            });
-          } else {
-            // Symbol not found, add placeholder
-            stocks.push({
-              symbol,
-              companyName: symbol,
-              price: 0,
-              priceChange: 0,
-              priceChangePercent: 0,
-              logoUrl: getLogoUrl(symbol),
-            });
-          }
-        }
-      } catch (error) {
-        console.error(`[Watchlist] Error fetching quotes:`, error);
-        // Add placeholders for failed symbols
-        for (const symbol of uncachedSymbols) {
+      for (const symbol of symbols) {
+        const data = quotes.get(symbol.toUpperCase());
+        if (data) {
+          stocks.push({
+            symbol: data.symbol,
+            companyName: data.companyName,
+            price: data.price,
+            priceChange: data.priceChange,
+            priceChangePercent: data.priceChangePercent,
+            logoUrl: getLogoUrl(data.symbol),
+          });
+        } else {
+          // Symbol not found, add placeholder
           stocks.push({
             symbol,
             companyName: symbol,
@@ -146,6 +112,19 @@ export class WatchlistService {
             logoUrl: getLogoUrl(symbol),
           });
         }
+      }
+    } catch (error) {
+      console.error(`[Watchlist] Error fetching quotes:`, error);
+      // Add placeholders for all symbols on error
+      for (const symbol of symbols) {
+        stocks.push({
+          symbol,
+          companyName: symbol,
+          price: 0,
+          priceChange: 0,
+          priceChangePercent: 0,
+          logoUrl: getLogoUrl(symbol),
+        });
       }
     }
 

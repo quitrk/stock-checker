@@ -11,6 +11,7 @@ export class YahooFinanceProvider implements IFinanceProvider {
   private yahooFinance: InstanceType<typeof YahooFinance>;
   private cache: Map<string, { data: StockData; timestamp: number }> = new Map();
   private quoteSummaryCache: Map<string, { data: QuoteSummaryResult; timestamp: number }> = new Map();
+  private marketDataCache: Map<string, { data: MarketData; timestamp: number }> = new Map();
   private readonly CACHE_TTL = 15 * 60 * 1000;
   private lastRequestTime = 0;
   private readonly MIN_REQUEST_INTERVAL = 500;
