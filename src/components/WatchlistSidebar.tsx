@@ -5,6 +5,7 @@ import { useToast } from '../contexts/ToastContext';
 import { Button } from './Button';
 import { ConfirmDialog } from './ConfirmDialog';
 import { CreateWatchlistForm } from './CreateWatchlistForm';
+import { StockLogo } from './StockLogo';
 import './WatchlistSidebar.css';
 
 type SortBy = 'symbol' | 'price' | 'change';
@@ -168,11 +169,9 @@ export function WatchlistSidebar({ isOpen, onToggle, onSelectSymbol }: Watchlist
                           onClick={() => handleSelectSymbol(stock.symbol)}
                         >
                           {stock.logoUrl && (
-                            <img
-                              src={stock.logoUrl}
-                              alt=""
+                            <StockLogo
+                              url={stock.logoUrl}
                               className="stock-logo"
-                              onError={(e) => { e.currentTarget.style.display = 'none'; }}
                             />
                           )}
                           <span className="symbol">{stock.symbol}</span>
