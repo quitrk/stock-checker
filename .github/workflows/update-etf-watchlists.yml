@@ -2,13 +2,14 @@ name: Update ETF Watchlists
 
 on:
   schedule:
-    # Run at 6 AM UTC (1 AM EST) on weekdays
-    - cron: '0 6 * * 1-5'
+    # Run at 4 AM UTC (11 PM EST) on weekdays
+    - cron: '0 4 * * 1-5'
   workflow_dispatch: # Allow manual trigger
 
 jobs:
   update-watchlists:
     runs-on: ubuntu-latest
+    environment: Production
 
     steps:
       - name: Checkout repository
