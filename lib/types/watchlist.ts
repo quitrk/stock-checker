@@ -24,6 +24,8 @@ export interface WatchlistStock {
   priceChangePercent: number;
   logoUrl: string | null;
   weight?: number; // ETF holding weight (0-1), only for system watchlists
+  historicalPrice?: number | null; // Price at comparison date
+  historicalChangePercent?: number | null; // % change since comparison date
 }
 
 export interface WatchlistWithStocks extends Watchlist {

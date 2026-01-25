@@ -63,12 +63,12 @@ export function StockChecklist() {
     }
   }, [loading]);
 
-  const fetchChecklist = useCallback(async (sym: string, refresh = false) => {
+  const fetchChecklist = useCallback(async (sym: string) => {
     if (!sym.trim()) return;
 
     setLoading(true);
     try {
-      const result = await getStockChecklist(sym.trim().toUpperCase(), refresh);
+      const result = await getStockChecklist(sym.trim().toUpperCase());
       setChecklist(result);
       updateUrl(sym);
 
@@ -117,12 +117,6 @@ export function StockChecklist() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, [fetchChecklist]);
 
-  const refreshChecklist = useCallback(() => {
-    if (checklist) {
-      fetchChecklist(checklist.symbol, true); // Skip cache on refresh
-    }
-  }, [checklist, fetchChecklist]);
-
   const handleSelectSymbol = useCallback((sym: string) => {
     setSymbol(sym);
     fetchChecklist(sym);
@@ -152,7 +146,12 @@ export function StockChecklist() {
                 key={checklist.logoUrl}
                 src={checklist.logoUrl}
                 alt={`${checklist.companyName} logo`}
-                className="header-logo"
+                className="header-logo clickable"
+                onClick={() => {
+                  setChecklist(null);
+                  setSymbol('');
+                  window.history.pushState({}, '', '/');
+                }}
                 onError={(e) => { e.currentTarget.style.display = 'none'; }}
               />
             )}
@@ -167,24 +166,9 @@ export function StockChecklist() {
                   className="symbol-input"
                   disabled={loading}
                 />
-                <div className="btn-split">
-                  <Button type="submit" variant="primary" size="sm" disabled={loading}>
-                    {loading ? '...' : 'Go'}
-                  </Button>
-                  {checklist && (
-                    <Button
-                      type="button"
-                      variant="primary"
-                      size="sm"
-                      className="btn-refresh"
-                      onClick={refreshChecklist}
-                      disabled={loading}
-                      title="Refresh data"
-                    >
-                      &#8635;
-                    </Button>
-                  )}
-                </div>
+                <Button type="submit" variant="primary" size="sm" disabled={loading}>
+                  {loading ? '...' : 'Go'}
+                </Button>
               </div>
             </form>
             {checklist && (
@@ -214,7 +198,13 @@ export function StockChecklist() {
 
       {!checklist && !loading && (
         <div className="empty-state">
-          <p>Enter a stock symbol to analyze risk factors, fundamentals, and SEC filings.</p>
+          {isAuthenticated ? (
+            <div className="empty-state-catalysts">
+              <CatalystsSection onSelectSymbol={handleSelectSymbol} defaultExpanded />
+            </div>
+          ) : (
+            <p>Enter a stock symbol to analyze risk factors, fundamentals, and SEC filings.</p>
+          )}
         </div>
       )}
 

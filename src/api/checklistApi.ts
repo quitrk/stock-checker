@@ -2,10 +2,8 @@ import type { ChecklistResult } from '../../lib/types/index.js';
 
 const API_BASE = '/api';
 
-export async function getStockChecklist(symbol: string, refresh = false): Promise<ChecklistResult> {
-  const url = refresh
-    ? `${API_BASE}/checklist/${symbol}?refresh=true`
-    : `${API_BASE}/checklist/${symbol}`;
+export async function getStockChecklist(symbol: string): Promise<ChecklistResult> {
+  const url = `${API_BASE}/checklist/${symbol}`;
 
   const response = await fetch(url);
 

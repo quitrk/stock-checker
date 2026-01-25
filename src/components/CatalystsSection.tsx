@@ -6,9 +6,10 @@ import { Expander } from './Expander';
 import './CatalystsSection.css';
 
 interface CatalystsSectionProps {
-  catalystEvents: CatalystEvent[];
-  currentSymbol: string;
+  catalystEvents?: CatalystEvent[];
+  currentSymbol?: string;
   onSelectSymbol?: (symbol: string) => void;
+  defaultExpanded?: boolean;
 }
 
 const EVENT_ICONS: Record<CatalystEventType, string> = {
@@ -65,21 +66,30 @@ function formatDate(dateStr: string): string {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-export function CatalystsSection({ catalystEvents, currentSymbol, onSelectSymbol }: CatalystsSectionProps) {
+export function CatalystsSection({ catalystEvents = [], currentSymbol, onSelectSymbol, defaultExpanded = true }: CatalystsSectionProps) {
   const { watchlist } = useApp();
-  const [selectedSource, setSelectedSource] = useState<string>('symbol'); // 'symbol' or watchlist ID
+  const [selectedSource, setSelectedSource] = useState<string | null>(null);
   const [watchlistEvents, setWatchlistEvents] = useState<CatalystEvent[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // Reset to symbol view when symbol changes
+  const userWatchlists = watchlist.watchlists;
+  const defaultWatchlists = watchlist.defaultWatchlists;
+  const firstAvailableWatchlist = defaultWatchlists[0] || userWatchlists[0];
+
+  // Initialize or reset selected source when symbol changes
   useEffect(() => {
-    setSelectedSource('symbol');
-    setWatchlistEvents([]);
-  }, [currentSymbol]);
+    if (currentSymbol) {
+      setSelectedSource('symbol');
+      setWatchlistEvents([]);
+    } else {
+      // No symbol - reset to first available watchlist
+      setSelectedSource(firstAvailableWatchlist?.id || null);
+    }
+  }, [currentSymbol, firstAvailableWatchlist?.id]);
 
   // Fetch watchlist catalysts when a watchlist is selected
   useEffect(() => {
-    if (selectedSource === 'symbol') {
+    if (!selectedSource || selectedSource === 'symbol') {
       setWatchlistEvents([]);
       return;
     }
@@ -93,8 +103,6 @@ export function CatalystsSection({ catalystEvents, currentSymbol, onSelectSymbol
 
   // Use watchlist events if a watchlist is selected, otherwise use prop events
   const activeEvents = selectedSource === 'symbol' ? catalystEvents : watchlistEvents;
-  const userWatchlists = watchlist.watchlists;
-  const defaultWatchlists = watchlist.defaultWatchlists;
 
   // Filter to only future events within 1 year and sort by date
   const oneYearFromNow = new Date();
@@ -120,7 +128,14 @@ export function CatalystsSection({ catalystEvents, currentSymbol, onSelectSymbol
 
   // Show section if we have events OR if user has watchlists to select from
   const hasWatchlists = userWatchlists.length > 0 || defaultWatchlists.length > 0;
+
+  // Don't render if no data and no watchlists to select
   if (futureEvents.length === 0 && recentPastEvents.length === 0 && !hasWatchlists && !loading) {
+    return null;
+  }
+
+  // In empty state mode (no symbol), don't render until we have a selected watchlist
+  if (!currentSymbol && !selectedSource) {
     return null;
   }
 
@@ -134,17 +149,19 @@ export function CatalystsSection({ catalystEvents, currentSymbol, onSelectSymbol
   const showWatchlistInEvents = selectedSource !== 'symbol';
 
   return (
-    <Expander title="Catalysts" summary={summary} defaultExpanded={true} className="calendar-section">
-      {hasWatchlists && (
+    <Expander title="Catalysts" summary={summary} defaultExpanded={defaultExpanded} ignoreMobileCollapse={!currentSymbol} className="calendar-section">
+      {(hasWatchlists || currentSymbol) && (
         <div className="catalyst-source-selector">
           <select
-            value={selectedSource}
+            value={selectedSource || ''}
             onChange={(e) => setSelectedSource(e.target.value)}
             className="source-select"
           >
-            <optgroup label="Current Stock">
-              <option value="symbol">{currentSymbol}</option>
-            </optgroup>
+            {currentSymbol && (
+              <optgroup label="Current Stock">
+                <option value="symbol">{currentSymbol}</option>
+              </optgroup>
+            )}
             {defaultWatchlists.length > 0 && (
               <optgroup label="ETF Watchlists">
                 {defaultWatchlists.map(wl => (

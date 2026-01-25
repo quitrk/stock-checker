@@ -1,5 +1,5 @@
 import type { CatalystEvent, ChecklistResult } from '../types/index.js';
-import { YahooFinanceProvider } from './providers/YahooFinanceProvider.js';
+import { yahooFinance, YahooFinanceProvider } from './providers/YahooFinanceProvider.js';
 import { ClinicalTrialsProvider } from './providers/ClinicalTrialsProvider.js';
 import { FinnhubProvider } from './providers/FinnhubProvider.js';
 import { SECService } from './SECService.js';
@@ -19,7 +19,7 @@ export class CatalystService {
     secService?: SECService
   ) {
     // Allow injection of existing providers to share cache
-    this.yahooProvider = yahooProvider || new YahooFinanceProvider();
+    this.yahooProvider = yahooProvider || yahooFinance;
     this.secService = secService || new SECService();
     this.clinicalTrialsProvider = new ClinicalTrialsProvider();
     this.finnhubProvider = new FinnhubProvider();

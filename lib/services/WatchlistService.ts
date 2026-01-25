@@ -1,6 +1,6 @@
 import { randomUUID } from 'crypto';
 import { getCached, setCache, deleteCache } from './CacheService.js';
-import { YahooFinanceProvider } from './providers/YahooFinanceProvider.js';
+import { yahooFinance } from './providers/YahooFinanceProvider.js';
 import { SYSTEM_USER_ID } from '../constants/system.js';
 import type { Watchlist, WatchlistSummary, WatchlistStock, WatchlistWithStocks } from '../types/watchlist.js';
 
@@ -15,7 +15,6 @@ function getLogoUrl(symbol: string): string | null {
 }
 
 export class WatchlistService {
-  private financeProvider = new YahooFinanceProvider();
 
   async createWatchlist(userId: string, name: string): Promise<Watchlist> {
     const userWatchlistIds = await getCached<string[]>(`user:${userId}:watchlists`) || [];
@@ -95,7 +94,7 @@ export class WatchlistService {
 
     try {
       console.log(`[Watchlist] Fetching quotes for ${symbols.length} symbols`);
-      const quotes = await this.financeProvider.getMultipleQuotes(symbols);
+      const quotes = await yahooFinance.getMultipleQuotes(symbols);
 
       for (const symbol of symbols) {
         const data = quotes.get(symbol.toUpperCase());

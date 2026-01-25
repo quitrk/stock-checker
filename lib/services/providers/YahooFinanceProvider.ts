@@ -5,13 +5,17 @@ import type { IFinanceProvider } from './IFinanceProvider.js';
 import { ProviderRateLimitError } from './IFinanceProvider.js';
 import type { FundamentalData, MarketData, StockData, HistoricalBar, NewsItem, CalendarEvents, AnalystData, AnalystRating, ShortInterestData, InsiderTransaction, EarningsHistory, CatalystEvent } from './types.js';
 
+// News publishers to filter out (low quality/spammy)
+const NEWS_PUBLISHER_BLACKLIST = [
+  'zacks',
+];
+
 export class YahooFinanceProvider implements IFinanceProvider {
   readonly providerName = 'yahoo';
 
   private yahooFinance: InstanceType<typeof YahooFinance>;
   private cache: Map<string, { data: StockData; timestamp: number }> = new Map();
   private quoteSummaryCache: Map<string, { data: QuoteSummaryResult; timestamp: number }> = new Map();
-  private marketDataCache: Map<string, { data: MarketData; timestamp: number }> = new Map();
   private readonly CACHE_TTL = 15 * 60 * 1000;
   private lastRequestTime = 0;
   private readonly MIN_REQUEST_INTERVAL = 500;
@@ -329,9 +333,13 @@ export class YahooFinanceProvider implements IFinanceProvider {
       }));
 
       // Filter to only news items that have this ticker in relatedTickers
+      // Also exclude blacklisted publishers
       const relevantNews = (result.news || []).filter((item: any) => {
         const relatedTickers = item.relatedTickers || [];
-        return relatedTickers.includes(symbol) || relatedTickers.includes(symbol.toUpperCase());
+        const isRelevant = relatedTickers.includes(symbol) || relatedTickers.includes(symbol.toUpperCase());
+        const publisher = (item.publisher || '').toLowerCase();
+        const isBlacklisted = NEWS_PUBLISHER_BLACKLIST.some(b => publisher.includes(b));
+        return isRelevant && !isBlacklisted;
       });
 
       const news: NewsItem[] = relevantNews.slice(0, count).map((item: any) => {
@@ -620,3 +628,6 @@ export class YahooFinanceProvider implements IFinanceProvider {
     }
   }
 }
+
+// Singleton instance
+export const yahooFinance = new YahooFinanceProvider();

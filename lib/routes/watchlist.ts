@@ -1,6 +1,8 @@
 import { Hono } from 'hono';
 import { WatchlistService } from '../services/WatchlistService.js';
 import { CatalystService } from '../services/CatalystService.js';
+import { yahooFinance } from '../services/providers/YahooFinanceProvider.js';
+import { getCached, setCache } from '../services/CacheService.js';
 import { requireAuth, getAuthUser } from '../middleware/auth.js';
 import { SYSTEM_USER_ID } from '../constants/system.js';
 
@@ -39,8 +41,10 @@ watchlist.get('/defaults', async (c) => {
 });
 
 // Get a single watchlist with stock data (public)
+// Optional ?t=<timestamp> param to show price changes since that date
 watchlist.get('/:id', async (c) => {
   const { id } = c.req.param();
+  const timestampParam = c.req.query('t');
   const result = await watchlistService.getWatchlistWithStocks(id);
 
   if (!result) {
@@ -52,9 +56,63 @@ watchlist.get('/:id', async (c) => {
   const isOwner = user?.id === result.userId;
   const isSystem = result.userId === SYSTEM_USER_ID;
 
+  let comparisonDate: string | null = null;
+
+  // If timestamp provided, add historical price data
+  if (timestampParam) {
+    const timestamp = parseInt(timestampParam, 10);
+    if (!isNaN(timestamp)) {
+      const targetDate = new Date(timestamp * 1000);
+      comparisonDate = targetDate.toISOString().split('T')[0];
+
+      // Cache key for this watchlist + timestamp combo
+      const cacheKey = `watchlist-historical:${id}:${timestamp}`;
+      let historicalPrices = await getCached<Record<string, number>>(cacheKey);
+
+      if (!historicalPrices) {
+        // Fetch historical data for all symbols
+        const daysDiff = Math.ceil((Date.now() - targetDate.getTime()) / (1000 * 60 * 60 * 24)) + 5;
+        historicalPrices = {};
+
+        for (const stock of result.stocks) {
+          try {
+            const bars = await yahooFinance.getHistoricalData(stock.symbol, daysDiff);
+            // Find bar closest to target date (on or before)
+            const targetDateStr = comparisonDate;
+            const historicalBar = bars
+              .filter(bar => bar.date <= targetDateStr)
+              .sort((a, b) => b.date.localeCompare(a.date))[0];
+            if (historicalBar) {
+              historicalPrices[stock.symbol] = historicalBar.close;
+            }
+          } catch (error) {
+            console.error(`[Watchlist] Error fetching historical data for ${stock.symbol}:`, error);
+          }
+        }
+
+        // Cache with no expiration (TTL 0)
+        console.log(`[Watchlist] Caching historical prices for ${Object.keys(historicalPrices).length} symbols with key: ${cacheKey}`);
+        await setCache(cacheKey, historicalPrices, 0);
+      }
+
+      // Add historical data to stocks
+      for (const stock of result.stocks) {
+        const historicalPrice = historicalPrices[stock.symbol];
+        if (historicalPrice != null) {
+          stock.historicalPrice = historicalPrice;
+          stock.historicalChangePercent = ((stock.price - historicalPrice) / historicalPrice) * 100;
+        } else {
+          stock.historicalPrice = null;
+          stock.historicalChangePercent = null;
+        }
+      }
+    }
+  }
+
   return c.json({
     watchlist: { ...result, isSystem },
     isOwner,
+    comparisonDate,
   });
 });
 

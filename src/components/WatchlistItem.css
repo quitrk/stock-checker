@@ -75,9 +75,11 @@
 .stock-header .header-logo-spacer {
   width: 20px;
   min-width: 20px;
+  flex-shrink: 0;
 }
 
 .stock-header .header-col {
+  margin: 0;
   padding: 0.25rem 0;
   font-size: 0.7rem;
   font-weight: 600;
@@ -100,6 +102,7 @@
 
 .stock-header .header-col.symbol {
   flex: 1;
+  min-width: 0;
   text-align: left;
 }
 
@@ -109,7 +112,7 @@
 }
 
 .stock-header .header-col.price {
-  flex: 1;
+  width: 70px;
   text-align: right;
 }
 
@@ -118,36 +121,49 @@
   text-align: right;
 }
 
+.stock-header .header-col.since {
+  width: 65px;
+  text-align: right;
+}
+
 .stock-header.has-remove .header-col.change {
   margin-right: 2.5rem; /* space for remove button */
 }
 
-.stock-row {
-  display: flex;
-  align-items: center;
+.stock-header.has-historical.has-remove .header-col.change {
+  margin-right: 0;
 }
 
-.stock-row .stock-btn {
-  flex: 1;
+.stock-header.has-historical.has-remove .header-col.since {
+  margin-right: 2.5rem; /* space for remove button */
+}
+
+.stock-row {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.6rem 1rem 0.6rem 1.5rem;
+  padding: 0.5rem 1.5rem 0.5rem 1.5rem;
   font-size: 0.95rem;
-  background: none;
-  border: none;
   color: var(--text-primary);
-  text-align: left;
   cursor: pointer;
 }
 
-.stock-row .stock-btn:hover {
+.stock-row:hover {
   background: var(--surface-hover, #333);
 }
 
-.stock-row .stock-btn.full-width {
-  padding-right: 1.5rem;
+.stock-row.has-remove .change {
+  margin-right: 2.5rem;
 }
+
+.stock-row .logo-spacer {
+  width: 20px;
+  min-width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
 
 .stock-row .stock-logo {
   width: 20px;
@@ -160,6 +176,7 @@
 
 .stock-row .symbol {
   flex: 1;
+  min-width: 0;
   font-weight: 600;
 }
 
@@ -171,7 +188,7 @@
 }
 
 .stock-row .price {
-  flex: 1;
+  width: 70px;
   color: var(--text-secondary);
   text-align: right;
 }
@@ -192,12 +209,18 @@
 }
 
 .stock-row .remove-btn {
-  padding: 0.75rem 1rem;
-  font-size: 1.4rem;
+  position: absolute;
+  right: 0.5rem;
+  top: 45%;
+  transform: translateY(-50%);
+  width: 2.5rem;
+  padding: 0.5rem 0;
+  font-size: 1.2rem;
   background: none;
   border: none;
   color: var(--text-secondary);
   cursor: pointer;
+  text-align: center;
 }
 
 .stock-row .remove-btn:hover {

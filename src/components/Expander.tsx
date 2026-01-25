@@ -3,14 +3,16 @@ import './Expander.css';
 
 const MOBILE_BREAKPOINT = 768;
 
-function getInitialExpanded(defaultExpanded: boolean): boolean {
+function getInitialExpanded(defaultExpanded: boolean, ignoreMobile: boolean): boolean {
   if (typeof window === 'undefined') return defaultExpanded;
+  if (ignoreMobile) return defaultExpanded;
   return window.innerWidth <= MOBILE_BREAKPOINT ? false : defaultExpanded;
 }
 
 interface ExpanderProps {
   title: string;
   defaultExpanded?: boolean;
+  ignoreMobileCollapse?: boolean;
   headerRight?: ReactNode;
   summary?: ReactNode;
   className?: string;
@@ -20,16 +22,17 @@ interface ExpanderProps {
 export function Expander({
   title,
   defaultExpanded = true,
+  ignoreMobileCollapse = false,
   headerRight,
   summary,
   className = '',
   children
 }: ExpanderProps) {
-  const [expanded, setExpanded] = useState(() => getInitialExpanded(defaultExpanded));
+  const [expanded, setExpanded] = useState(() => getInitialExpanded(defaultExpanded, ignoreMobileCollapse));
 
   useEffect(() => {
-    setExpanded(getInitialExpanded(defaultExpanded));
-  }, [defaultExpanded]);
+    setExpanded(getInitialExpanded(defaultExpanded, ignoreMobileCollapse));
+  }, [defaultExpanded, ignoreMobileCollapse]);
 
   const showSummary = !expanded && summary;
 

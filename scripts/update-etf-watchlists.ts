@@ -279,7 +279,7 @@ async function updateETFWatchlists() {
   for (let i = 0; i < uniqueSymbols.length; i += CONCURRENCY) {
     const batch = uniqueSymbols.slice(i, i + CONCURRENCY);
     const results = await Promise.allSettled(
-      batch.map(symbol => checklistService.generateChecklist(symbol))
+      batch.map(symbol => checklistService.generateChecklist(symbol, { ttl: 0 }))
     );
 
     for (const result of results) {

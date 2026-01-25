@@ -1,4 +1,4 @@
-import { YahooFinanceProvider, type FundamentalData, type MarketData, type HistoricalBar, type ShortInterestData } from './providers/index.js';
+import { yahooFinance, type FundamentalData, type MarketData, type HistoricalBar, type ShortInterestData } from './providers/index.js';
 import { SECService, SECFilingInfo } from './SECService.js';
 import { CatalystService } from './CatalystService.js';
 import { getCached, setCache, cacheKey } from './CacheService.js';
@@ -20,18 +20,17 @@ interface VolumeAnalysis {
 }
 
 export class ChecklistService {
-  private financeProvider: YahooFinanceProvider;
   private secService: SECService;
   private catalystService: CatalystService;
 
   constructor() {
-    this.financeProvider = new YahooFinanceProvider();
     this.secService = new SECService();
     // Share providers with CatalystService to reuse cached data
-    this.catalystService = new CatalystService(this.financeProvider, this.secService);
+    this.catalystService = new CatalystService(yahooFinance, this.secService);
   }
 
-  async generateChecklist(symbol: string, skipCache = false): Promise<ChecklistResult> {
+  async generateChecklist(symbol: string, options: { skipCache?: boolean; ttl?: number } = {}): Promise<ChecklistResult> {
+    const { skipCache = false, ttl } = options;
     const upperSymbol = symbol.toUpperCase();
     // Cache disabled for symbol lookups - always fetch fresh data
 
@@ -43,7 +42,7 @@ export class ChecklistService {
 
     try {
       console.log(`[ChecklistService] Fetching stock data for ${upperSymbol}...`);
-      const stockData = await this.financeProvider.getStockData(upperSymbol);
+      const stockData = await yahooFinance.getStockData(upperSymbol);
       marketData = stockData.marketData;
       fundamentalData = stockData.fundamentalData;
       shortInterestData = stockData.shortInterestData;
@@ -62,7 +61,7 @@ export class ChecklistService {
     // Fetch historical data once for multiple uses (days below $1, volume analysis)
     let historicalBars: HistoricalBar[] = [];
     try {
-      historicalBars = await this.financeProvider.getHistoricalData(upperSymbol, 90);
+      historicalBars = await yahooFinance.getHistoricalData(upperSymbol, 90);
     } catch (error) {
       console.error(`[ChecklistService] Historical data error:`, error);
     }
@@ -90,9 +89,9 @@ export class ChecklistService {
     const industry = marketData?.industry || 'Unknown';
 
     const [newsResult, catalystResult, analystResult] = await Promise.allSettled([
-      this.financeProvider.getNews(upperSymbol, 5),
+      yahooFinance.getNews(upperSymbol, 5),
       this.catalystService.getCatalystEvents(upperSymbol, companyName, industry),
-      this.financeProvider.getAnalystData(upperSymbol),
+      yahooFinance.getAnalystData(upperSymbol),
     ]);
 
     if (newsResult.status === 'fulfilled') {
@@ -155,7 +154,7 @@ export class ChecklistService {
 
     // Cache the result if no errors
     if (errors.length === 0) {
-      await setCache(cacheKey('checklist', upperSymbol), result);
+      await setCache(cacheKey('checklist', upperSymbol), result, ttl);
     }
 
     return result;

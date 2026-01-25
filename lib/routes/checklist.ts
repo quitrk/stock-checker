@@ -9,7 +9,7 @@ checklist.get('/:symbol', async (c) => {
   const skipCache = c.req.query('refresh') === 'true';
 
   try {
-    const result = await checklistService.generateChecklist(symbol.toUpperCase(), skipCache);
+    const result = await checklistService.generateChecklist(symbol.toUpperCase(), { skipCache });
     return c.json(result);
   } catch (error) {
     console.error(`[API] Error generating checklist for ${symbol}:`, error);

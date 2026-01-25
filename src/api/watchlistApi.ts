@@ -44,8 +44,9 @@ export async function createWatchlist(name: string): Promise<Watchlist> {
   return data.watchlist;
 }
 
-export async function getWatchlist(id: string): Promise<{ watchlist: WatchlistWithStocks; isOwner: boolean }> {
-  const response = await fetch(`${API_BASE}/${id}`, {
+export async function getWatchlist(id: string, timestamp?: number): Promise<{ watchlist: WatchlistWithStocks; isOwner: boolean; comparisonDate: string | null }> {
+  const url = timestamp ? `${API_BASE}/${id}?t=${timestamp}` : `${API_BASE}/${id}`;
+  const response = await fetch(url, {
     credentials: 'include',
   });
 
