@@ -2,7 +2,7 @@ import { randomUUID } from 'crypto';
 import { getCached, setCache, deleteCache } from './CacheService.js';
 import { yahooFinance } from './providers/YahooFinanceProvider.js';
 import { SYSTEM_USER_ID } from '../constants/system.js';
-import type { Watchlist, WatchlistSummary, WatchlistStock, WatchlistWithStocks } from '../types/watchlist.js';
+import type { Watchlist, WatchlistSummary, WatchlistStock, WatchlistWithStocks, WatchlistItem } from '../types/watchlist.js';
 
 const MAX_WATCHLISTS_PER_USER = 20;
 const MAX_SYMBOLS_PER_WATCHLIST = 100;
@@ -30,7 +30,7 @@ export class WatchlistService {
       id,
       userId,
       name: name.trim(),
-      symbols: [],
+      items: [],
       createdAt: now,
       updatedAt: now,
     };
@@ -52,7 +52,7 @@ export class WatchlistService {
         summaries.push({
           id: watchlist.id,
           name: watchlist.name,
-          symbols: watchlist.symbols,
+          items: watchlist.items,
           updatedAt: watchlist.updatedAt,
         });
       }
@@ -75,7 +75,7 @@ export class WatchlistService {
       return { ...watchlist, stocks: cachedStocks || [] };
     }
 
-    const stocks = await this.getStocksData(watchlist.symbols);
+    const stocks = await this.getStocksData(watchlist.items);
     return { ...watchlist, stocks };
   }
 
@@ -87,17 +87,28 @@ export class WatchlistService {
     return watchlist;
   }
 
-  async getStocksData(symbols: string[]): Promise<WatchlistStock[]> {
-    if (symbols.length === 0) return [];
+  async getStocksData(items: WatchlistItem[]): Promise<WatchlistStock[]> {
+    if (items.length === 0) return [];
 
+    const symbols = items.map(item => item.symbol);
     const stocks: WatchlistStock[] = [];
 
     try {
       console.log(`[Watchlist] Fetching quotes for ${symbols.length} symbols`);
       const quotes = await yahooFinance.getMultipleQuotes(symbols);
 
-      for (const symbol of symbols) {
-        const data = quotes.get(symbol.toUpperCase());
+      for (const item of items) {
+        const data = quotes.get(item.symbol.toUpperCase());
+        const currentPrice = data?.price ?? 0;
+
+        // Calculate historical change if we have cached historical price
+        let historicalPrice: number | null = null;
+        let historicalChangePercent: number | null = null;
+        if (item.historicalPrice != null && currentPrice > 0) {
+          historicalPrice = item.historicalPrice;
+          historicalChangePercent = ((currentPrice - historicalPrice) / historicalPrice) * 100;
+        }
+
         if (data) {
           stocks.push({
             symbol: data.symbol,
@@ -106,36 +117,40 @@ export class WatchlistService {
             priceChange: data.priceChange,
             priceChangePercent: data.priceChangePercent,
             logoUrl: getLogoUrl(data.symbol),
+            addedAt: item.addedAt,
+            historicalPrice,
+            historicalChangePercent,
           });
         } else {
           // Symbol not found, add placeholder
           stocks.push({
-            symbol,
-            companyName: symbol,
+            symbol: item.symbol,
+            companyName: item.symbol,
             price: 0,
             priceChange: 0,
             priceChangePercent: 0,
-            logoUrl: getLogoUrl(symbol),
+            logoUrl: getLogoUrl(item.symbol),
+            addedAt: item.addedAt,
+            historicalPrice,
+            historicalChangePercent,
           });
         }
       }
     } catch (error) {
       console.error(`[Watchlist] Error fetching quotes:`, error);
-      // Add placeholders for all symbols on error
-      for (const symbol of symbols) {
+      // Add placeholders for all items on error
+      for (const item of items) {
         stocks.push({
-          symbol,
-          companyName: symbol,
+          symbol: item.symbol,
+          companyName: item.symbol,
           price: 0,
           priceChange: 0,
           priceChangePercent: 0,
-          logoUrl: getLogoUrl(symbol),
+          logoUrl: getLogoUrl(item.symbol),
+          addedAt: item.addedAt,
         });
       }
     }
-
-    // Sort stocks alphabetically by symbol
-    stocks.sort((a, b) => a.symbol.localeCompare(b.symbol));
 
     return stocks;
   }
@@ -172,15 +187,16 @@ export class WatchlistService {
 
     const upperSymbol = symbol.toUpperCase().trim();
 
-    if (watchlist.symbols.includes(upperSymbol)) {
+    // Check if symbol already exists
+    if (watchlist.items.some(item => item.symbol === upperSymbol)) {
       return watchlist;
     }
 
-    if (watchlist.symbols.length >= MAX_SYMBOLS_PER_WATCHLIST) {
+    if (watchlist.items.length >= MAX_SYMBOLS_PER_WATCHLIST) {
       throw new Error(`Maximum ${MAX_SYMBOLS_PER_WATCHLIST} symbols per watchlist`);
     }
 
-    watchlist.symbols.push(upperSymbol);
+    watchlist.items.push({ symbol: upperSymbol });
     watchlist.updatedAt = new Date().toISOString();
 
     await setCache(`watchlist:${watchlistId}`, watchlist, 0);
@@ -193,17 +209,64 @@ export class WatchlistService {
     if (!watchlist) return null;
 
     const upperSymbol = symbol.toUpperCase().trim();
-    const index = watchlist.symbols.indexOf(upperSymbol);
+    const index = watchlist.items.findIndex(item => item.symbol === upperSymbol);
 
     if (index === -1) {
       return watchlist;
     }
 
-    watchlist.symbols.splice(index, 1);
+    watchlist.items.splice(index, 1);
     watchlist.updatedAt = new Date().toISOString();
 
     await setCache(`watchlist:${watchlistId}`, watchlist, 0);
     console.log(`[Watchlist] Removed ${upperSymbol} from watchlist ${watchlistId}`);
+    return watchlist;
+  }
+
+  async updateSymbolMetadata(
+    watchlistId: string,
+    userId: string,
+    symbol: string,
+    metadata: { addedAt?: string | null }
+  ): Promise<Watchlist | null> {
+    const watchlist = await this.getOwnedWatchlist(watchlistId, userId);
+    if (!watchlist) return null;
+
+    const upperSymbol = symbol.toUpperCase().trim();
+
+    // Find item
+    const item = watchlist.items.find(i => i.symbol === upperSymbol);
+    if (!item) {
+      return null;
+    }
+
+    // Update metadata
+    if (metadata.addedAt === null || metadata.addedAt === undefined) {
+      delete item.addedAt;
+      delete item.historicalPrice;
+    } else {
+      item.addedAt = metadata.addedAt;
+      // Fetch and cache historical price for this date
+      try {
+        const targetDate = new Date(metadata.addedAt);
+        const daysDiff = Math.ceil((Date.now() - targetDate.getTime()) / (1000 * 60 * 60 * 24)) + 5;
+        const bars = await yahooFinance.getHistoricalData(upperSymbol, daysDiff);
+        const historicalBar = bars
+          .filter(bar => bar.date <= metadata.addedAt!)
+          .sort((a, b) => b.date.localeCompare(a.date))[0];
+        if (historicalBar) {
+          item.historicalPrice = historicalBar.close;
+          console.log(`[Watchlist] Cached historical price for ${upperSymbol} at ${metadata.addedAt}: $${historicalBar.close}`);
+        }
+      } catch (error) {
+        console.error(`[Watchlist] Error fetching historical price for ${upperSymbol}:`, error);
+      }
+    }
+
+    watchlist.updatedAt = new Date().toISOString();
+
+    await setCache(`watchlist:${watchlistId}`, watchlist, 0);
+    console.log(`[Watchlist] Updated metadata for ${upperSymbol} in watchlist ${watchlistId}:`, metadata);
     return watchlist;
   }
 
@@ -219,7 +282,7 @@ export class WatchlistService {
         summaries.push({
           id: watchlist.id,
           name: watchlist.name,
-          symbols: watchlist.symbols,
+          items: watchlist.items,
           updatedAt: watchlist.updatedAt,
           isSystem: true,
         });
@@ -237,7 +300,7 @@ export class WatchlistService {
       id,
       userId: SYSTEM_USER_ID,
       name,
-      symbols,
+      items: symbols.map(symbol => ({ symbol })),
       createdAt: existing?.createdAt || now,
       updatedAt: now,
       isSystem: true,

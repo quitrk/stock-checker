@@ -7,13 +7,11 @@ import './SharedWatchlistPage.css';
 
 interface SharedWatchlistPageProps {
   watchlistId: string;
-  timestamp?: number; // Unix timestamp in seconds
 }
 
-export function SharedWatchlistPage({ watchlistId, timestamp }: SharedWatchlistPageProps) {
+export function SharedWatchlistPage({ watchlistId }: SharedWatchlistPageProps) {
   const navigate = useNavigate();
   const [watchlist, setWatchlist] = useState<WatchlistWithStocks | null>(null);
-  const [comparisonDate, setComparisonDate] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -22,9 +20,8 @@ export function SharedWatchlistPage({ watchlistId, timestamp }: SharedWatchlistP
       setLoading(true);
       setError(null);
       try {
-        const result = await getWatchlist(watchlistId, timestamp);
+        const result = await getWatchlist(watchlistId);
         setWatchlist(result.watchlist);
-        setComparisonDate(result.comparisonDate);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load watchlist');
       } finally {
@@ -32,7 +29,7 @@ export function SharedWatchlistPage({ watchlistId, timestamp }: SharedWatchlistP
       }
     }
     fetchData();
-  }, [watchlistId, timestamp]);
+  }, [watchlistId]);
 
   if (loading) {
     return (
@@ -50,19 +47,10 @@ export function SharedWatchlistPage({ watchlistId, timestamp }: SharedWatchlistP
     );
   }
 
-  // Format comparison date for display
-  const formattedDate = comparisonDate
-    ? new Date(comparisonDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-    : null;
-
-  // Calculate total return (average of all stocks with historical data)
-  const totalReturn = comparisonDate && watchlist?.stocks
-    ? (() => {
-        const stocksWithHistory = watchlist.stocks.filter(s => s.historicalChangePercent != null);
-        if (stocksWithHistory.length === 0) return null;
-        const sum = stocksWithHistory.reduce((acc, s) => acc + (s.historicalChangePercent ?? 0), 0);
-        return sum / stocksWithHistory.length;
-      })()
+  // Calculate average return for stocks with historical data
+  const stocksWithHistory = watchlist.stocks.filter(s => s.historicalChangePercent != null);
+  const totalReturn = stocksWithHistory.length > 0
+    ? stocksWithHistory.reduce((acc, s) => acc + (s.historicalChangePercent ?? 0), 0) / stocksWithHistory.length
     : null;
 
   return (
@@ -73,14 +61,12 @@ export function SharedWatchlistPage({ watchlistId, timestamp }: SharedWatchlistP
         </button>
         <span className="watchlist-title">{watchlist.name}</span>
       </div>
-      {formattedDate && (
-        <div className={`comparison-badge ${totalReturn != null ? (totalReturn >= 0 ? 'up' : 'down') : ''}`}>
+      {totalReturn != null && (
+        <div className={`comparison-badge ${totalReturn >= 0 ? 'up' : 'down'}`}>
           <span className="comparison-main">
-            Since {formattedDate}{totalReturn != null && `: ${totalReturn >= 0 ? '+' : ''}${totalReturn.toFixed(1)}%`}
+            Avg. return: {totalReturn >= 0 ? '+' : ''}{totalReturn.toFixed(1)}%
           </span>
-          {totalReturn != null && (
-            <span className="comparison-subtext">Avg. return across {watchlist.stocks.filter(s => s.historicalChangePercent != null).length} stocks</span>
-          )}
+          <span className="comparison-subtext">Across {stocksWithHistory.length} stocks with date set</span>
         </div>
       )}
       <WatchlistItem
@@ -88,16 +74,15 @@ export function SharedWatchlistPage({ watchlistId, timestamp }: SharedWatchlistP
         watchlist={{
           id: watchlist.id,
           name: watchlist.name,
-          symbols: watchlist.symbols,
+          items: watchlist.items,
           updatedAt: watchlist.updatedAt,
           isSystem: watchlist.isSystem,
         }}
         isExpanded={true}
         isLoading={false}
         stocks={watchlist.stocks}
-        onToggle={() => {}} // No-op, always expanded
-        onSelectSymbol={() => {}} // No-op for shared view
-        historicalDate={comparisonDate}
+        onToggle={() => {}}
+        onSelectSymbol={() => {}}
       />
     </div>
   );

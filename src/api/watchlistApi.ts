@@ -44,9 +44,8 @@ export async function createWatchlist(name: string): Promise<Watchlist> {
   return data.watchlist;
 }
 
-export async function getWatchlist(id: string, timestamp?: number): Promise<{ watchlist: WatchlistWithStocks; isOwner: boolean; comparisonDate: string | null }> {
-  const url = timestamp ? `${API_BASE}/${id}?t=${timestamp}` : `${API_BASE}/${id}`;
-  const response = await fetch(url, {
+export async function getWatchlist(id: string): Promise<{ watchlist: WatchlistWithStocks; isOwner: boolean }> {
+  const response = await fetch(`${API_BASE}/${id}`, {
     credentials: 'include',
   });
 
@@ -112,6 +111,27 @@ export async function removeSymbol(watchlistId: string, symbol: string): Promise
   if (!response.ok) {
     const data = await response.json();
     throw new Error(data.error || 'Failed to remove symbol');
+  }
+
+  const data = await response.json();
+  return data.watchlist;
+}
+
+export async function updateSymbolMetadata(
+  watchlistId: string,
+  symbol: string,
+  metadata: { addedAt?: string | null }
+): Promise<Watchlist> {
+  const response = await fetch(`${API_BASE}/${watchlistId}/symbols/${encodeURIComponent(symbol)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(metadata),
+  });
+
+  if (!response.ok) {
+    const data = await response.json();
+    throw new Error(data.error || 'Failed to update symbol');
   }
 
   const data = await response.json();

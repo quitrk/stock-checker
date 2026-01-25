@@ -4,6 +4,7 @@ import { useApp } from '../contexts/AppContext';
 import { useToast } from '../contexts/ToastContext';
 import { Button } from './Button';
 import { ConfirmDialog } from './ConfirmDialog';
+import { EditSymbolDialog } from './EditSymbolDialog';
 import { CreateWatchlistForm } from './CreateWatchlistForm';
 import { WatchlistItem } from './WatchlistItem';
 import './WatchlistSidebar.css';
@@ -21,6 +22,7 @@ export function WatchlistSidebar({ isOpen, onToggle, onSelectSymbol }: Watchlist
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
   const [removeSymbolTarget, setRemoveSymbolTarget] = useState<{ watchlistId: string; symbol: string } | null>(null);
+  const [editTarget, setEditTarget] = useState<{ watchlistId: string; symbol: string; currentDate: string | null } | null>(null);
 
   const handleToggleWatchlist = async (id: string) => {
     if (expandedId === id) {
@@ -55,6 +57,22 @@ export function WatchlistSidebar({ isOpen, onToggle, onSelectSymbol }: Watchlist
       showError(err instanceof Error ? err.message : 'Failed to delete watchlist');
     } finally {
       setDeleteTarget(null);
+    }
+  };
+
+  const handleEditSymbol = async (addedAt: string | null): Promise<void> => {
+    if (!editTarget) return;
+    try {
+      await watchlist.updateSymbolDate(editTarget.watchlistId, editTarget.symbol, addedAt);
+      if (addedAt) {
+        showSuccess(`Updated date for ${editTarget.symbol}`);
+      } else {
+        showSuccess(`Cleared date for ${editTarget.symbol}`);
+      }
+      setEditTarget(null);
+    } catch (err) {
+      showError(err instanceof Error ? err.message : 'Failed to update symbol');
+      throw err; // Re-throw so dialog knows it failed
     }
   };
 
@@ -107,6 +125,7 @@ export function WatchlistSidebar({ isOpen, onToggle, onSelectSymbol }: Watchlist
               onSelectSymbol={handleSelectSymbol}
               onDelete={() => setDeleteTarget({ id: w.id, name: w.name })}
               onRemoveSymbol={(symbol) => setRemoveSymbolTarget({ watchlistId: w.id, symbol })}
+              onEditSymbol={(symbol, currentDate) => setEditTarget({ watchlistId: w.id, symbol, currentDate })}
             />
           ))}
         </div>
@@ -132,6 +151,13 @@ export function WatchlistSidebar({ isOpen, onToggle, onSelectSymbol }: Watchlist
         confirmLabel="Remove"
         onConfirm={handleRemoveSymbol}
         onCancel={() => setRemoveSymbolTarget(null)}
+      />
+      <EditSymbolDialog
+        open={!!editTarget}
+        symbol={editTarget?.symbol || ''}
+        currentDate={editTarget?.currentDate || null}
+        onSave={handleEditSymbol}
+        onCancel={() => setEditTarget(null)}
       />
     </>
   );

@@ -78,7 +78,7 @@ export function AddToWatchlistButton({ symbol }: AddToWatchlistButtonProps) {
             <div className="watchlist-list">
               {watchlist.watchlists.map((w) => {
                 const isLoading = isAdding === w.id;
-                const isInWatchlist = w.symbols.includes(symbol.toUpperCase());
+                const isInWatchlist = w.items.some(item => item.symbol === symbol.toUpperCase());
                 return (
                   <button
                     key={w.id}

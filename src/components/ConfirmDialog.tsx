@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react';
+import { Dialog, DialogActions } from './Dialog';
 import { Button } from './Button';
 import './ConfirmDialog.css';
 
@@ -21,35 +21,13 @@ export function ConfirmDialog({
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
-  const dialogRef = useRef<HTMLDialogElement>(null);
-
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-
-    if (open && !dialog.open) {
-      dialog.showModal();
-    } else if (!open && dialog.open) {
-      dialog.close();
-    }
-  }, [open]);
-
-  const handleBackdropClick = (e: React.MouseEvent) => {
-    if (e.target === dialogRef.current) {
-      onCancel();
-    }
-  };
-
   return (
-    <dialog ref={dialogRef} className="confirm-dialog" onClick={handleBackdropClick}>
-      <div className="confirm-dialog-content">
-        <h3>{title}</h3>
-        <p>{message}</p>
-        <div className="confirm-dialog-actions">
-          <Button variant="secondary" onClick={onCancel}>{cancelLabel}</Button>
-          <Button variant="danger" onClick={onConfirm}>{confirmLabel}</Button>
-        </div>
-      </div>
-    </dialog>
+    <Dialog open={open} onClose={onCancel} title={title}>
+      <p className="confirm-dialog-message">{message}</p>
+      <DialogActions>
+        <Button variant="secondary" onClick={onCancel}>{cancelLabel}</Button>
+        <Button variant="danger" onClick={onConfirm}>{confirmLabel}</Button>
+      </DialogActions>
+    </Dialog>
   );
 }

@@ -1,0 +1,51 @@
+.edit-symbol-field {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.edit-symbol-field label {
+  font-size: 0.9rem;
+  color: var(--text-secondary, #888);
+  min-width: 80px;
+}
+
+.edit-symbol-field input[type="date"] {
+  flex: 1;
+  padding: 0.5rem;
+  border: 1px solid var(--border-color, #333);
+  border-radius: 4px;
+  background: var(--background, #121212);
+  color: var(--text-primary, #fff);
+  font-size: 0.9rem;
+}
+
+.edit-symbol-field input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+}
+
+.edit-symbol-field input[type="date"]:disabled {
+  opacity: 0.5;
+}
+
+.clear-date-btn {
+  padding: 0.5rem 0.75rem;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-secondary, #888);
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.clear-date-btn:hover {
+  color: var(--text-primary, #fff);
+}
+
+.edit-symbol-hint {
+  margin: 0;
+  color: var(--text-secondary, #888);
+  font-size: 0.85rem;
+  line-height: 1.4;
+}

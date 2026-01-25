@@ -18,6 +18,7 @@ export interface UseWatchlistReturn {
   clearActiveWatchlist: () => void;
   addSymbol: (watchlistId: string, symbol: string) => Promise<void>;
   removeSymbol: (watchlistId: string, symbol: string) => Promise<void>;
+  updateSymbolDate: (watchlistId: string, symbol: string, addedAt: string | null) => Promise<void>;
   reset: () => void;
 }
 
@@ -57,7 +58,7 @@ export function useWatchlist(): UseWatchlistReturn {
     setWatchlists(prev => [...prev, {
       id: created.id,
       name: created.name,
-      symbols: [],
+      items: [],
       updatedAt: created.updatedAt,
     }]);
     return created;
@@ -113,7 +114,7 @@ export function useWatchlist(): UseWatchlistReturn {
   const addSymbol = useCallback(async (watchlistId: string, symbol: string) => {
     const updated = await api.addSymbol(watchlistId, symbol);
     setWatchlists(prev => prev.map(w =>
-      w.id === watchlistId ? { ...w, symbols: updated.symbols, updatedAt: updated.updatedAt } : w
+      w.id === watchlistId ? { ...w, items: updated.items, updatedAt: updated.updatedAt } : w
     ));
     // Invalidate cache for this watchlist
     setCache(prev => {
@@ -132,17 +133,38 @@ export function useWatchlist(): UseWatchlistReturn {
   const removeSymbol = useCallback(async (watchlistId: string, symbol: string) => {
     const updated = await api.removeSymbol(watchlistId, symbol);
     setWatchlists(prev => prev.map(w =>
-      w.id === watchlistId ? { ...w, symbols: updated.symbols, updatedAt: updated.updatedAt } : w
+      w.id === watchlistId ? { ...w, items: updated.items, updatedAt: updated.updatedAt } : w
     ));
     if (activeWatchlist?.id === watchlistId) {
       const updatedWatchlist = {
         ...activeWatchlist,
-        symbols: updated.symbols,
-        stocks: activeWatchlist.stocks.filter(s => updated.symbols.includes(s.symbol)),
+        items: updated.items,
+        stocks: activeWatchlist.stocks.filter(s =>
+          updated.items.some(item => item.symbol === s.symbol)
+        ),
       };
       setActiveWatchlist(updatedWatchlist);
       // Update cache
       setCache(prev => new Map(prev).set(watchlistId, updatedWatchlist));
+    }
+  }, [activeWatchlist]);
+
+  const updateSymbolDate = useCallback(async (watchlistId: string, symbol: string, addedAt: string | null) => {
+    const updated = await api.updateSymbolMetadata(watchlistId, symbol, { addedAt });
+    setWatchlists(prev => prev.map(w =>
+      w.id === watchlistId ? { ...w, items: updated.items, updatedAt: updated.updatedAt } : w
+    ));
+    // Invalidate cache to force re-fetch with new historical data
+    setCache(prev => {
+      const next = new Map(prev);
+      next.delete(watchlistId);
+      return next;
+    });
+    // Refresh active watchlist if it's the one being modified
+    if (activeWatchlist?.id === watchlistId) {
+      const { watchlist } = await api.getWatchlist(watchlistId);
+      setActiveWatchlist(watchlist);
+      setCache(prev => new Map(prev).set(watchlistId, watchlist));
     }
   }, [activeWatchlist]);
 
@@ -170,6 +192,7 @@ export function useWatchlist(): UseWatchlistReturn {
     clearActiveWatchlist,
     addSymbol,
     removeSymbol,
+    updateSymbolDate,
     reset,
   };
 }

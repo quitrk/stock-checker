@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, useParams, useSearchParams } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, useParams } from 'react-router-dom'
 import { ToastProvider } from './contexts/ToastContext'
 import { AuthProvider } from './contexts/AuthContext'
 import { AppProvider } from './contexts/AppContext'
@@ -9,17 +9,8 @@ import './App.css'
 
 function WatchlistRoute() {
   const { id } = useParams<{ id: string }>();
-  const [searchParams] = useSearchParams();
-  const timestamp = searchParams.get('t');
-
   if (!id) return null;
-
-  return (
-    <SharedWatchlistPage
-      watchlistId={id}
-      timestamp={timestamp ? parseInt(timestamp, 10) : undefined}
-    />
-  );
+  return <SharedWatchlistPage watchlistId={id} />;
 }
 
 function App() {

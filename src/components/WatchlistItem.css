@@ -126,16 +126,18 @@
   text-align: right;
 }
 
-.stock-header.has-remove .header-col.change {
-  margin-right: 2.5rem; /* space for remove button */
+/* Desktop: keep space for inline action buttons */
+@media (min-width: 769px) {
+  .stock-header.has-remove .header-col.change,
+  .stock-header.has-actions .header-col.change {
+    margin-right: 3.5rem;
+  }
 }
 
-.stock-header.has-historical.has-remove .header-col.change {
-  margin-right: 0;
-}
-
-.stock-header.has-historical.has-remove .header-col.since {
-  margin-right: 2.5rem; /* space for remove button */
+/* Swipe container wrapper */
+.stock-row-wrapper {
+  position: relative;
+  overflow: hidden;
 }
 
 .stock-row {
@@ -147,14 +149,109 @@
   font-size: 0.95rem;
   color: var(--text-primary);
   cursor: pointer;
+  background: var(--background);
+  transition: transform 0.2s ease-out;
 }
 
 .stock-row:hover {
   background: var(--surface-hover, #333);
 }
 
-.stock-row.has-remove .change {
-  margin-right: 2.5rem;
+/* Mobile: swipe to reveal actions */
+@media (max-width: 768px) {
+  .stock-row {
+    padding: 0.875rem 1.5rem;
+  }
+
+  .stock-row-wrapper.swiped .stock-row {
+    transform: translateX(-150px);
+  }
+
+  .swipe-actions {
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    display: flex;
+    transform: translateX(100%);
+    transition: transform 0.2s ease-out;
+  }
+
+  .stock-row-wrapper.swiped .swipe-actions {
+    transform: translateX(0);
+  }
+
+  .swipe-action-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 75px;
+    padding: 0 0.5rem;
+    font-size: 0.8rem;
+    font-weight: 500;
+    border: none;
+    color: white;
+    cursor: pointer;
+  }
+
+  .swipe-action-btn.edit {
+    background: var(--primary, #3b82f6);
+  }
+
+  .swipe-action-btn.remove {
+    background: var(--danger, #ef4444);
+  }
+}
+
+/* Desktop: show actions inline */
+@media (min-width: 769px) {
+  .swipe-actions {
+    position: absolute;
+    right: 0.5rem;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    gap: 0.25rem;
+  }
+
+  .stock-row-wrapper.has-actions .stock-row .change {
+    margin-right: 3.5rem;
+  }
+
+  .swipe-action-btn {
+    width: 1.5rem;
+    height: 1.5rem;
+    padding: 0;
+    font-size: 0;
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+  }
+
+  .swipe-action-btn.edit::before {
+    content: '\270E';
+    font-size: 0.9rem;
+  }
+
+  .swipe-action-btn.remove::before {
+    content: '\00D7';
+    font-size: 1.2rem;
+  }
+
+  .swipe-action-btn.edit:hover {
+    color: var(--primary);
+    background: var(--surface-hover, #333);
+  }
+
+  .swipe-action-btn.remove:hover {
+    color: #ef4444;
+    background: var(--surface-hover, #333);
+  }
 }
 
 .stock-row .logo-spacer {
@@ -208,21 +305,11 @@
   color: #ef4444;
 }
 
-.stock-row .remove-btn {
-  position: absolute;
-  right: 0.5rem;
-  top: 45%;
-  transform: translateY(-50%);
-  width: 2.5rem;
-  padding: 0.5rem 0;
-  font-size: 1.2rem;
-  background: none;
-  border: none;
+.stock-row .symbol-date {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 400;
   color: var(--text-secondary);
-  cursor: pointer;
-  text-align: center;
+  line-height: 1.2;
 }
 
-.stock-row .remove-btn:hover {
-  color: #ef4444;
-}
