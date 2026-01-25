@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 
-const REQUEST_DELAY_MS = 200;
+const REQUEST_DELAY_MS = 400;
 
 type QueueItem = {
   url: string;

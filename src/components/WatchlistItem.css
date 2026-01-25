@@ -22,6 +22,9 @@
 .watchlist-header .expand-icon {
   font-size: 0.6rem;
   color: var(--text-secondary);
+  min-width: 0.75rem;
+  flex-shrink: 0;
+  text-align: center;
 }
 
 .watchlist-header .name {
