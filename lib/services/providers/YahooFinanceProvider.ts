@@ -44,6 +44,7 @@ export class YahooFinanceProvider implements IFinanceProvider {
   /**
    * Fetches all quoteSummary modules in a single API call and caches the result.
    * All other methods should use this to avoid duplicate external calls.
+   * If fetching all modules fails due to module errors, it will test each module and retry with only working ones.
    */
   private async getQuoteSummary(symbol: string): Promise<QuoteSummaryResult> {
     const cached = this.quoteSummaryCache.get(symbol);
@@ -51,12 +52,55 @@ export class YahooFinanceProvider implements IFinanceProvider {
       return cached.data;
     }
 
-    const data = await this.retry(() => this.yahooFinance.quoteSummary(symbol, {
-      modules: [...this.ALL_MODULES],
-    }));
+    // First attempt - try all modules without retry wrapper to detect module errors quickly
+    try {
+      await this.throttle();
+      const data = await this.yahooFinance.quoteSummary(symbol, {
+        modules: [...this.ALL_MODULES],
+      });
+      this.quoteSummaryCache.set(symbol, { data, timestamp: Date.now() });
+      return data;
+    } catch (error: any) {
+      const errorMsg = error?.message || '';
+      const isModuleError = errorMsg.includes('internal-error') ||
+                           errorMsg.includes('No fundamentals data') ||
+                           errorMsg.includes('not found');
 
-    this.quoteSummaryCache.set(symbol, { data, timestamp: Date.now() });
-    return data;
+      if (!isModuleError) {
+        // Not a module error - use normal retry logic
+        const data = await this.retry(() => this.yahooFinance.quoteSummary(symbol, {
+          modules: [...this.ALL_MODULES],
+        }));
+        this.quoteSummaryCache.set(symbol, { data, timestamp: Date.now() });
+        return data;
+      }
+
+      // Module error - find which ones work
+      console.log(`[YahooFinance] Module error for ${symbol}, testing individual modules...`);
+      const workingModules: typeof this.ALL_MODULES[number][] = [];
+
+      for (const mod of this.ALL_MODULES) {
+        try {
+        //   await this.throttle();
+          await this.yahooFinance.quoteSummary(symbol, { modules: [mod] });
+          workingModules.push(mod);
+        } catch {
+          console.log(`[YahooFinance] Module '${mod}' unavailable for ${symbol}`);
+        }
+      }
+
+      if (workingModules.length === 0) {
+        throw new Error(`No quoteSummary modules available for ${symbol}`);
+      }
+
+      console.log(`[YahooFinance] Fetching ${symbol} with ${workingModules.length} available modules`);
+      const data = await this.yahooFinance.quoteSummary(symbol, {
+        modules: workingModules,
+      });
+
+      this.quoteSummaryCache.set(symbol, { data, timestamp: Date.now() });
+      return data;
+    }
   }
 
   private parseDate(value: any): Date | null {

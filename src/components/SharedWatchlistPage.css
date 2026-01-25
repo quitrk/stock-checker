@@ -42,35 +42,3 @@
   background: var(--surface-hover, #333);
   color: var(--text-primary);
 }
-
-.shared-watchlist-page .comparison-badge {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.25rem;
-  margin-bottom: 1rem;
-  padding: 0.5rem 1rem;
-  background: var(--surface-hover, #333);
-  border-radius: 6px;
-  color: var(--text-secondary);
-  text-align: center;
-}
-
-.shared-watchlist-page .comparison-badge .comparison-main {
-  font-size: 0.85rem;
-}
-
-.shared-watchlist-page .comparison-badge .comparison-subtext {
-  font-size: 0.7rem;
-  opacity: 0.7;
-}
-
-.shared-watchlist-page .comparison-badge.up {
-  background: rgba(16, 185, 129, 0.15);
-  color: #10b981;
-}
-
-.shared-watchlist-page .comparison-badge.down {
-  background: rgba(239, 68, 68, 0.15);
-  color: #ef4444;
-}

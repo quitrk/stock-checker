@@ -49,12 +49,6 @@ export class ChecklistService {
       console.log(`[ChecklistService] Stock data received for ${upperSymbol}`);
     } catch (error) {
       console.error(`[ChecklistService] Stock data error:`, error);
-      // If main data fetch fails, return cached data if available
-      const cached = await getCached<ChecklistResult>(cacheKey('checklist', upperSymbol));
-      if (cached) {
-        console.log(`[ChecklistService] Returning cached data due to fetch error`);
-        return cached;
-      }
       errors.push(`Stock data unavailable: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
 

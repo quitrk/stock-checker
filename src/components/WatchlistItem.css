@@ -37,19 +37,93 @@
   border-radius: 4px;
 }
 
-.watchlist-header .delete-btn {
-  padding: 0.25rem 0.5rem;
-  font-size: 0.75rem;
+.watchlist-header .share-btn {
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  font-size: 0;
   background: none;
-  border: 1px solid var(--danger, #ef4444);
+  border: none;
   border-radius: 4px;
-  color: var(--danger, #ef4444);
+  color: var(--text-secondary);
   cursor: pointer;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.watchlist-header .delete-btn:hover {
-  background: var(--danger, #ef4444);
-  color: white;
+.watchlist-header .share-btn::before {
+  content: '🔗';
+  font-size: 0.85rem;
+}
+
+.watchlist-header .share-btn:hover {
+  background: var(--surface-hover, #333);
+  color: var(--text-primary);
+}
+
+.watchlist-header .share-btn.copied {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+}
+
+.watchlist-header .share-btn.copied::before {
+  content: '\2713';
+}
+
+/* Mobile: match watchlist header height to stock rows */
+@media (max-width: 768px) {
+  .watchlist-header {
+    padding: 0.875rem 1.5rem;
+  }
+
+  .watchlist-header .share-btn {
+    width: 2.25rem;
+    height: 2.25rem;
+  }
+
+  .watchlist-header .share-btn::before {
+    font-size: 1.1rem;
+  }
+}
+
+/* Hide header remove button on mobile - use swipe */
+.watchlist-header .header-remove-btn {
+  display: none;
+}
+
+/* Desktop: show header remove button */
+@media (min-width: 769px) {
+  .watchlist-header .header-remove-btn {
+    width: 1.75rem;
+    height: 1.75rem;
+    padding: 0;
+    font-size: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    border-radius: 4px;
+  }
+
+  .watchlist-header .header-remove-btn:hover {
+    background: var(--surface-hover, #333);
+    color: var(--danger, #ef4444);
+  }
+
+  .watchlist-header .header-remove-btn::before {
+    content: '🗑';
+    font-size: 0.85rem;
+  }
+}
+
+/* Watchlist header swipeable wrapper */
+.watchlist-header-wrapper {
+  background: var(--background);
 }
 
 .watchlist-stocks {
@@ -157,28 +231,10 @@
   background: var(--surface-hover, #333);
 }
 
-/* Mobile: swipe to reveal actions */
+/* Mobile: swipe action buttons */
 @media (max-width: 768px) {
   .stock-row {
     padding: 0.875rem 1.5rem;
-  }
-
-  .stock-row-wrapper.swiped .stock-row {
-    transform: translateX(-150px);
-  }
-
-  .swipe-actions {
-    position: absolute;
-    right: 0;
-    top: 0;
-    bottom: 0;
-    display: flex;
-    transform: translateX(100%);
-    transition: transform 0.2s ease-out;
-  }
-
-  .stock-row-wrapper.swiped .swipe-actions {
-    transform: translateX(0);
   }
 
   .swipe-action-btn {
@@ -201,21 +257,25 @@
   .swipe-action-btn.remove {
     background: var(--danger, #ef4444);
   }
+
+  /* Header has single action - smaller swipe */
+  .watchlist-header-wrapper.swiped .swipeable-row-content {
+    transform: translateX(-75px);
+  }
 }
 
 /* Desktop: show actions inline */
 @media (min-width: 769px) {
-  .swipe-actions {
+  .stock-row-wrapper.has-actions .stock-row .change {
+    margin-right: 3.5rem;
+  }
+
+  .stock-row-wrapper .swipeable-row-actions {
     position: absolute;
     right: 0.5rem;
     top: 50%;
     transform: translateY(-50%);
-    display: flex;
     gap: 0.25rem;
-  }
-
-  .stock-row-wrapper.has-actions .stock-row .change {
-    margin-right: 3.5rem;
   }
 
   .swipe-action-btn {
@@ -239,8 +299,8 @@
   }
 
   .swipe-action-btn.remove::before {
-    content: '\00D7';
-    font-size: 1.2rem;
+    content: '🗑';
+    font-size: 0.85rem;
   }
 
   .swipe-action-btn.edit:hover {
@@ -251,6 +311,11 @@
   .swipe-action-btn.remove:hover {
     color: #ef4444;
     background: var(--surface-hover, #333);
+  }
+
+  /* Hide swipeable actions on desktop - remove is shown inside header */
+  .watchlist-header-wrapper .swipeable-row-actions {
+    display: none;
   }
 }
 
@@ -311,5 +376,34 @@
   font-weight: 400;
   color: var(--text-secondary);
   line-height: 1.2;
+}
+
+/* Total return row */
+.total-return-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1.5rem;
+  margin-top: 0.5rem;
+  border-top: 1px solid var(--border-color);
+  background: var(--surface-hover, #333);
+}
+
+.total-return-row .total-return-label {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.total-return-row .total-return-value {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.total-return-row.up .total-return-value {
+  color: #10b981;
+}
+
+.total-return-row.down .total-return-value {
+  color: #ef4444;
 }
 

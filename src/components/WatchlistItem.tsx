@@ -1,10 +1,31 @@
-import { useState, useMemo, useRef, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { StockLogo } from './StockLogo';
+import { SwipeableRow } from './SwipeableRow';
 import type { WatchlistSummary, WatchlistStock } from '../../lib/types/watchlist';
 import './WatchlistItem.css';
 
-// Swipe threshold in pixels to trigger action reveal
-const SWIPE_THRESHOLD = 50;
+// Copy to clipboard with fallback for older browsers
+async function copyToClipboard(text: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    document.body.appendChild(textarea);
+    textarea.select();
+    try {
+      document.execCommand('copy');
+      return true;
+    } catch {
+      return false;
+    } finally {
+      document.body.removeChild(textarea);
+    }
+  }
+}
 
 type SortBy = 'symbol' | 'price' | 'change' | 'weight' | 'since';
 type SortOrder = 'asc' | 'desc';
@@ -43,52 +64,21 @@ export function WatchlistItem({
 
   const [sortBy, setSortBy] = useState<SortBy>(hasWeights ? 'weight' : 'symbol');
   const [sortOrder, setSortOrder] = useState<SortOrder>(hasWeights ? 'desc' : 'asc');
+  const [shareCopied, setShareCopied] = useState(false);
 
-  // Track which row is swiped open (by symbol)
-  const [swipedSymbol, setSwipedSymbol] = useState<string | null>(null);
-  const touchStartX = useRef<number>(0);
-  const touchStartY = useRef<number>(0);
-  const rowRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+  // Calculate total return for stocks with date added
+  const stocksWithDateAdded = stocks.filter(s => s.addedAt && s.historicalChangePercent != null);
+  const totalReturn = stocksWithDateAdded.length > 0
+    ? stocksWithDateAdded.reduce((acc, s) => acc + (s.historicalChangePercent ?? 0), 0) / stocksWithDateAdded.length
+    : null;
 
-  // Close swiped row when clicking outside
-  useEffect(() => {
-    if (!swipedSymbol) return;
-
-    const handleClickOutside = (e: MouseEvent | TouchEvent) => {
-      const swipedRow = rowRefs.current.get(swipedSymbol);
-      if (swipedRow && !swipedRow.contains(e.target as Node)) {
-        setSwipedSymbol(null);
-      }
-    };
-
-    document.addEventListener('click', handleClickOutside);
-    document.addEventListener('touchstart', handleClickOutside);
-    return () => {
-      document.removeEventListener('click', handleClickOutside);
-      document.removeEventListener('touchstart', handleClickOutside);
-    };
-  }, [swipedSymbol]);
-
-  const handleTouchStart = (symbol: string, e: React.TouchEvent) => {
-    touchStartX.current = e.touches[0].clientX;
-    touchStartY.current = e.touches[0].clientY;
-  };
-
-  const handleTouchEnd = (symbol: string, e: React.TouchEvent) => {
-    const touchEndX = e.changedTouches[0].clientX;
-    const touchEndY = e.changedTouches[0].clientY;
-    const deltaX = touchStartX.current - touchEndX;
-    const deltaY = Math.abs(touchStartY.current - touchEndY);
-
-    // Only trigger if horizontal swipe is dominant
-    if (deltaY < Math.abs(deltaX)) {
-      if (deltaX > SWIPE_THRESHOLD) {
-        // Swiped left - reveal actions
-        setSwipedSymbol(symbol);
-      } else if (deltaX < -SWIPE_THRESHOLD) {
-        // Swiped right - hide actions
-        setSwipedSymbol(null);
-      }
+  const handleShare = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const shareUrl = `${window.location.origin}/watchlist/${watchlist.id}`;
+    const success = await copyToClipboard(shareUrl);
+    if (success) {
+      setShareCopied(true);
+      setTimeout(() => setShareCopied(false), 2000);
     }
   };
 
@@ -132,27 +122,53 @@ export function WatchlistItem({
   return (
     <div className="watchlist-group">
       {!hideHeader && (
-        <div
-          className={`watchlist-header ${isExpanded ? 'expanded' : ''}`}
-          onClick={onToggle}
-        >
-          <span className="expand-icon">{isExpanded ? '\u25BC' : '\u25B6'}</span>
-          <span className="name">{watchlist.name}</span>
-          {isSystem ? (
-            <span className="badge-default">Default</span>
-          ) : onDelete && (
+        <SwipeableRow
+          enabled={!isSystem && !!onDelete}
+          className="watchlist-header-wrapper"
+          actions={
             <button
               type="button"
-              className="delete-btn"
+              className="swipe-action-btn remove"
               onClick={(e) => {
                 e.stopPropagation();
-                onDelete();
+                onDelete?.();
               }}
             >
               Remove
             </button>
-          )}
-        </div>
+          }
+        >
+          <div
+            className={`watchlist-header ${isExpanded ? 'expanded' : ''}`}
+            onClick={onToggle}
+          >
+            <span className="expand-icon">{isExpanded ? '\u25BC' : '\u25B6'}</span>
+            <span className="name">{watchlist.name}</span>
+            {!isSystem && (
+              <button
+                type="button"
+                className={`share-btn ${shareCopied ? 'copied' : ''}`}
+                onClick={handleShare}
+                title="Copy share link"
+              >
+                {shareCopied ? 'Copied!' : 'Share'}
+              </button>
+            )}
+            {!isSystem && onDelete && (
+              <button
+                type="button"
+                className="header-remove-btn"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete();
+                }}
+                title="Remove watchlist"
+              >
+                Remove
+              </button>
+            )}
+          </div>
+        </SwipeableRow>
       )}
 
       {(isExpanded || hideHeader) && (
@@ -215,29 +231,45 @@ export function WatchlistItem({
                   ? `${changeValue >= 0 ? '+' : ''}${changeValue.toFixed(1)}%`
                   : 'N/A';
                 const dateLabel = stock.addedAt ? formatDate(stock.addedAt) : null;
-                const hasActions = !isSystem && (onRemoveSymbol || onEditSymbol);
-                const isSwiped = swipedSymbol === stock.symbol;
+                const hasActions = !isSystem && !!(onRemoveSymbol || onEditSymbol);
 
                 return (
-                  <div
+                  <SwipeableRow
                     key={stock.symbol}
-                    ref={(el) => {
-                      if (el) rowRefs.current.set(stock.symbol, el);
-                      else rowRefs.current.delete(stock.symbol);
-                    }}
-                    className={`stock-row-wrapper ${hasActions ? 'has-actions' : ''} ${isSwiped ? 'swiped' : ''}`}
-                    onTouchStart={hasActions ? (e) => handleTouchStart(stock.symbol, e) : undefined}
-                    onTouchEnd={hasActions ? (e) => handleTouchEnd(stock.symbol, e) : undefined}
+                    enabled={hasActions}
+                    className={`stock-row-wrapper ${hasActions ? 'has-actions' : ''}`}
+                    actions={
+                      <>
+                        {onEditSymbol && (
+                          <button
+                            type="button"
+                            className="swipe-action-btn edit"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onEditSymbol(stock.symbol, stock.addedAt || null);
+                            }}
+                          >
+                            Edit
+                          </button>
+                        )}
+                        {onRemoveSymbol && (
+                          <button
+                            type="button"
+                            className="swipe-action-btn remove"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onRemoveSymbol(stock.symbol);
+                            }}
+                          >
+                            Remove
+                          </button>
+                        )}
+                      </>
+                    }
                   >
                     <div
                       className={`stock-row ${hasWeights ? 'has-weights' : ''}`}
-                      onClick={() => {
-                        if (isSwiped) {
-                          setSwipedSymbol(null);
-                        } else {
-                          onSelectSymbol(stock.symbol);
-                        }
-                      }}
+                      onClick={() => onSelectSymbol(stock.symbol)}
                       role="button"
                       tabIndex={0}
                       onKeyDown={(e) => e.key === 'Enter' && onSelectSymbol(stock.symbol)}
@@ -262,39 +294,19 @@ export function WatchlistItem({
                         {changeDisplay}
                       </span>
                     </div>
-                    {hasActions && (
-                      <div className="swipe-actions">
-                        {onEditSymbol && (
-                          <button
-                            type="button"
-                            className="swipe-action-btn edit"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSwipedSymbol(null);
-                              onEditSymbol(stock.symbol, stock.addedAt || null);
-                            }}
-                          >
-                            Edit
-                          </button>
-                        )}
-                        {onRemoveSymbol && (
-                          <button
-                            type="button"
-                            className="swipe-action-btn remove"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSwipedSymbol(null);
-                              onRemoveSymbol(stock.symbol);
-                            }}
-                          >
-                            Remove
-                          </button>
-                        )}
-                      </div>
-                    )}
-                  </div>
+                  </SwipeableRow>
                 );
               })}
+              {totalReturn != null && (
+                <div className={`total-return-row ${totalReturn >= 0 ? 'up' : 'down'}`}>
+                  <span className="total-return-label">
+                    Avg. return ({stocksWithDateAdded.length} {stocksWithDateAdded.length === 1 ? 'stock' : 'stocks'})
+                  </span>
+                  <span className="total-return-value">
+                    {totalReturn >= 0 ? '+' : ''}{totalReturn.toFixed(1)}%
+                  </span>
+                </div>
+              )}
             </>
           )}
         </div>

@@ -47,12 +47,6 @@ export function SharedWatchlistPage({ watchlistId }: SharedWatchlistPageProps) {
     );
   }
 
-  // Calculate average return for stocks with historical data
-  const stocksWithHistory = watchlist.stocks.filter(s => s.historicalChangePercent != null);
-  const totalReturn = stocksWithHistory.length > 0
-    ? stocksWithHistory.reduce((acc, s) => acc + (s.historicalChangePercent ?? 0), 0) / stocksWithHistory.length
-    : null;
-
   return (
     <div className="shared-watchlist-page">
       <div className="page-header">
@@ -61,14 +55,6 @@ export function SharedWatchlistPage({ watchlistId }: SharedWatchlistPageProps) {
         </button>
         <span className="watchlist-title">{watchlist.name}</span>
       </div>
-      {totalReturn != null && (
-        <div className={`comparison-badge ${totalReturn >= 0 ? 'up' : 'down'}`}>
-          <span className="comparison-main">
-            Avg. return: {totalReturn >= 0 ? '+' : ''}{totalReturn.toFixed(1)}%
-          </span>
-          <span className="comparison-subtext">Across {stocksWithHistory.length} stocks with date set</span>
-        </div>
-      )}
       <WatchlistItem
         hideHeader
         watchlist={{
@@ -82,7 +68,7 @@ export function SharedWatchlistPage({ watchlistId }: SharedWatchlistPageProps) {
         isLoading={false}
         stocks={watchlist.stocks}
         onToggle={() => {}}
-        onSelectSymbol={() => {}}
+        onSelectSymbol={(symbol) => navigate(`/${symbol}`)}
       />
     </div>
   );

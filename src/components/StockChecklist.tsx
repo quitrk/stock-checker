@@ -17,6 +17,7 @@ import { Button } from './Button';
 import { AuthButton } from './AuthButton';
 import { AddToWatchlistButton } from './AddToWatchlistButton';
 import { WatchlistSidebar } from './WatchlistSidebar';
+import { Spinner } from './Spinner';
 import './StockChecklist.css';
 
 const STATUS_ICONS: Record<ChecklistStatus, string> = {
@@ -167,7 +168,7 @@ export function StockChecklist() {
                   disabled={loading}
                 />
                 <Button type="submit" variant="primary" size="sm" disabled={loading}>
-                  {loading ? '...' : 'Go'}
+                  {loading ? <Spinner size="sm" /> : 'Go'}
                 </Button>
               </div>
             </form>
@@ -175,7 +176,7 @@ export function StockChecklist() {
               <>
                 <span className="header-company-name">{checklist.companyName}</span>
                 <span className="header-industry">{checklist.industry}</span>
-                <span className="header-price">${checklist.price.toFixed(2)}</span>
+                <span className="header-price">${(checklist.price ?? 0).toFixed(2)}</span>
                 <span className="header-market-cap">{formatMarketCap(checklist.marketCap)}</span>
               </>
             )}
@@ -215,12 +216,12 @@ export function StockChecklist() {
             <div className="content-main">
               <div className="categories-grid">
                 <div className="categories-column">
-                  {checklist.categories.slice(0, Math.ceil(checklist.categories.length / 2)).map((category) => (
+                  {(checklist.categories ?? []).slice(0, Math.ceil((checklist.categories ?? []).length / 2)).map((category) => (
                     <CategoryCard key={category.id} category={category} />
                   ))}
                 </div>
                 <div className="categories-column">
-                  {checklist.categories.slice(Math.ceil(checklist.categories.length / 2)).map((category) => (
+                  {(checklist.categories ?? []).slice(Math.ceil((checklist.categories ?? []).length / 2)).map((category) => (
                     <CategoryCard key={category.id} category={category} />
                   ))}
                 </div>
