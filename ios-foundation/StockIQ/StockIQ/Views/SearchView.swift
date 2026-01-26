@@ -37,6 +37,21 @@ struct SearchView: View {
                     VStack(spacing: 16) {
                         StockHeader(result: result)
                         ChecklistView(categories: result.categories)
+
+                        // Analyst ratings
+                        if let analystData = result.analystData {
+                            AnalystSection(analystData: analystData, currentPrice: result.price)
+                        }
+
+                        // Catalysts
+                        if !result.catalystEvents.isEmpty {
+                            CatalystsSection(catalystEvents: result.catalystEvents, currentSymbol: result.symbol)
+                        }
+
+                        // News
+                        if !result.news.isEmpty {
+                            NewsSection(news: result.news, summary: result.newsSummary)
+                        }
                     }
                     .padding(.vertical)
                 }

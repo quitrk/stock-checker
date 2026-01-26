@@ -45,16 +45,14 @@ struct StockHeader: View {
 
             Spacer()
 
-            Image(systemName: result.overallStatus.icon)
-                .font(.title2)
-                .foregroundStyle(result.overallStatus.color)
+            AddToWatchlistButton(symbol: result.symbol)
         }
     }
 
     // MARK: - Price Info
 
     private var priceInfo: some View {
-        HStack {
+        HStack(alignment: .top) {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Price")
                     .font(.caption)

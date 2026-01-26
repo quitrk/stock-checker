@@ -63,7 +63,7 @@ struct CategorySection: View {
             Spacer()
 
             // Summary value if available
-            if let summary = category.summaryItem {
+            if let summary = category.summaryItem, summary.status != .unavailable {
                 Text(summary.displayValue)
                     .font(.subheadline)
                     .fontWeight(.medium)

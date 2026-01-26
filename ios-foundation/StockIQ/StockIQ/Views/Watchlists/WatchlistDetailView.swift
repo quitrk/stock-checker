@@ -23,11 +23,25 @@ struct WatchlistDetailView: View {
     @State private var selectedSymbol: String?
     @State private var sortBy: SortOption = .symbol
     @State private var sortAscending = true
+    @State private var filterText = ""
+    @State private var showCatalysts = false
+    @State private var catalysts: [CatalystEvent] = []
+    @State private var isLoadingCatalysts = false
+    @State private var isAddingSymbol = false
+    @State private var validatedSymbol: String?
+    @State private var isValidatingSymbol = false
 
-    private var sortedStocks: [WatchlistStock] {
+    private var filteredAndSortedStocks: [WatchlistStock] {
         guard let stocks = watchlist?.stocks else { return [] }
 
-        let sorted = stocks.sorted { a, b in
+        // Filter
+        let filtered = filterText.isEmpty ? stocks : stocks.filter { stock in
+            stock.symbol.localizedCaseInsensitiveContains(filterText) ||
+            stock.companyName.localizedCaseInsensitiveContains(filterText)
+        }
+
+        // Sort
+        let sorted = filtered.sorted { a, b in
             switch sortBy {
             case .symbol:
                 return a.symbol < b.symbol
@@ -59,18 +73,59 @@ struct WatchlistDetailView: View {
                 }
             } else if watchlist != nil {
                 List {
-                    ForEach(sortedStocks) { stock in
+                    if filteredAndSortedStocks.isEmpty && !filterText.isEmpty && isOwner {
+                        // No matches - offer to add the symbol if valid
+                        if isValidatingSymbol {
+                            HStack {
+                                ProgressView()
+                                    .controlSize(.small)
+                                Text("Checking \(filterText.uppercased())...")
+                                    .foregroundStyle(.secondary)
+                            }
+                        } else if let symbol = validatedSymbol, symbol == filterText.uppercased() {
+                            Button {
+                                Task { await addSymbol(symbol) }
+                            } label: {
+                                HStack {
+                                    Image(systemName: "plus.circle.fill")
+                                        .foregroundStyle(.blue)
+                                    Text("Add \(symbol) to watchlist")
+                                    Spacer()
+                                    if isAddingSymbol {
+                                        ProgressView()
+                                            .controlSize(.small)
+                                    }
+                                }
+                            }
+                            .disabled(isAddingSymbol)
+                        } else if filterText.count >= 1 {
+                            Text("No matching symbols")
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+
+                    ForEach(filteredAndSortedStocks) { stock in
                         Button {
                             selectedSymbol = stock.symbol
                         } label: {
                             StockRow(stock: stock, showWeight: watchlist?.isSystemWatchlist ?? false)
                         }
                         .buttonStyle(.plain)
+                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                            if isOwner {
+                                Button(role: .destructive) {
+                                    Task { await removeSymbol(stock.symbol) }
+                                } label: {
+                                    Label("Remove", systemImage: "trash")
+                                }
+                            }
+                        }
                     }
                 }
                 .refreshable {
                     await loadWatchlist()
                 }
+                .searchable(text: $filterText, prompt: isOwner ? "Filter or add symbols" : "Filter symbols")
             } else {
                 ContentUnavailableView("No stocks", systemImage: "list.bullet")
             }
@@ -78,6 +133,14 @@ struct WatchlistDetailView: View {
         .navigationTitle(watchlistName)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                Button {
+                    showCatalysts = true
+                    Task { await loadCatalysts() }
+                } label: {
+                    Image(systemName: "calendar")
+                }
+            }
             ToolbarItem(placement: .navigationBarTrailing) {
                 Menu {
                     Picker("Sort by", selection: $sortBy) {
@@ -105,8 +168,47 @@ struct WatchlistDetailView: View {
                 }
             }
         }
+        .sheet(isPresented: $showCatalysts) {
+            NavigationStack {
+                Group {
+                    if isLoadingCatalysts {
+                        ProgressView()
+                    } else if catalysts.isEmpty {
+                        ContentUnavailableView("No Catalysts", systemImage: "calendar.badge.exclamationmark")
+                    } else {
+                        ScrollView {
+                            CatalystsSection(catalystEvents: catalysts)
+                                .padding(.vertical)
+                        }
+                    }
+                }
+                .navigationTitle("Catalysts")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Done") { showCatalysts = false }
+                    }
+                }
+            }
+            .presentationDetents([.medium, .large])
+        }
         .task {
             await loadWatchlist()
+        }
+        .onChange(of: filterText) { _, newValue in
+            validatedSymbol = nil
+            let symbol = newValue.uppercased().trimmingCharacters(in: .whitespaces)
+            guard !symbol.isEmpty,
+                  filteredAndSortedStocks.isEmpty,
+                  isOwner else {
+                isValidatingSymbol = false
+                return
+            }
+
+            isValidatingSymbol = true
+            Task {
+                await validateSymbol(symbol)
+            }
         }
         .navigationDestination(item: $selectedSymbol) { symbol in
             StockDetailView(symbol: symbol)
@@ -126,6 +228,56 @@ struct WatchlistDetailView: View {
         }
 
         isLoading = false
+    }
+
+    private func removeSymbol(_ symbol: String) async {
+        do {
+            _ = try await api.removeSymbol(from: watchlistId, symbol: symbol)
+            await loadWatchlist()
+        } catch {
+            // Could show error toast here
+        }
+    }
+
+    private func addSymbol(_ symbol: String) async {
+        isAddingSymbol = true
+        do {
+            _ = try await api.addSymbol(to: watchlistId, symbol: symbol)
+            filterText = ""
+            validatedSymbol = nil
+            await loadWatchlist()
+        } catch {
+            // Could show error toast here
+        }
+        isAddingSymbol = false
+    }
+
+    private func validateSymbol(_ symbol: String) async {
+        isValidatingSymbol = true
+        do {
+            // Try to fetch the checklist - if it succeeds, the symbol is valid
+            _ = try await api.getChecklist(symbol: symbol)
+            // Only set if filter text still matches
+            if filterText.uppercased() == symbol {
+                validatedSymbol = symbol
+            }
+        } catch {
+            // Symbol doesn't exist or error - don't offer to add
+            if filterText.uppercased() == symbol {
+                validatedSymbol = nil
+            }
+        }
+        isValidatingSymbol = false
+    }
+
+    private func loadCatalysts() async {
+        isLoadingCatalysts = true
+        do {
+            catalysts = try await api.getWatchlistCatalysts(id: watchlistId)
+        } catch {
+            catalysts = []
+        }
+        isLoadingCatalysts = false
     }
 }
 
@@ -221,8 +373,23 @@ struct StockDetailView: View {
                     VStack(spacing: 16) {
                         StockHeader(result: result)
                         ChecklistView(categories: result.categories)
+
+                        // Analyst ratings
+                        if let analystData = result.analystData {
+                            AnalystSection(analystData: analystData, currentPrice: result.price)
+                        }
+
+                        // Catalysts
+                        if !result.catalystEvents.isEmpty {
+                            CatalystsSection(catalystEvents: result.catalystEvents, currentSymbol: result.symbol)
+                        }
+
+                        // News
+                        if !result.news.isEmpty {
+                            NewsSection(news: result.news, summary: result.newsSummary)
+                        }
                     }
-                    .padding()
+                    .padding(.vertical)
                 }
             }
         }

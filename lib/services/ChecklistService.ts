@@ -429,9 +429,9 @@ export class ChecklistService {
         items.push({
           id: '52_week_position',
           label: '52-Week Range Position',
-          description: 'Where the stock trades within its 52-week range.',
+          description: `Where the stock trades within its 52-week range (L: $${marketData.low52Week.toFixed(2)}, H: $${marketData.high52Week.toFixed(2)}).`,
           value: position,
-          displayValue: `${position.toFixed(0)}% (L: $${marketData.low52Week.toFixed(2)}, H: $${marketData.high52Week.toFixed(2)})`,
+          displayValue: `${position.toFixed(0)}% (52w)`,
           status: 'safe',
         });
       }

@@ -37,6 +37,13 @@ struct WatchlistsView: View {
                                     NavigationLink(value: watchlist) {
                                         WatchlistRow(watchlist: watchlist)
                                     }
+                                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                        Button(role: .destructive) {
+                                            Task { await deleteWatchlist(watchlist) }
+                                        } label: {
+                                            Label("Delete", systemImage: "trash")
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -124,6 +131,15 @@ struct WatchlistsView: View {
         }
 
         isLoading = false
+    }
+
+    private func deleteWatchlist(_ watchlist: WatchlistSummary) async {
+        do {
+            try await api.deleteWatchlist(id: watchlist.id)
+            userWatchlists.removeAll { $0.id == watchlist.id }
+        } catch {
+            // Could show error toast here
+        }
     }
 }
 

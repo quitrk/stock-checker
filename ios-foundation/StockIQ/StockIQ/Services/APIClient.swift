@@ -98,7 +98,7 @@ final class APIClient {
 
     func createWatchlist(name: String) async throws -> Watchlist {
         let response: SingleWatchlistResponse = try await post(
-            "/api/watchlist/",
+            "/api/watchlist",
             body: ["name": name]
         )
         return response.watchlist

@@ -9,7 +9,7 @@ final class LogoLoadQueue {
     static let shared = LogoLoadQueue()
 
     private var lastLoadTime: Date = .distantPast
-    private let minDelay: TimeInterval = 0.5
+    private let minDelay: TimeInterval = 0.05
     private var pendingLoads: [() -> Void] = []
     private var isProcessing = false
 
