@@ -1,5 +1,5 @@
 .shared-watchlist-page {
-  max-width: 600px;
+  max-width: 1200px;
   margin: 0 auto;
   padding: 1rem;
 }
@@ -41,4 +41,38 @@
 .shared-watchlist-page .back-home-btn:hover {
   background: var(--surface-hover, #333);
   color: var(--text-primary);
+}
+
+.shared-watchlist-page .sections-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.shared-watchlist-page .sections-container > * {
+  min-width: 0;
+}
+
+.shared-watchlist-page .holdings-section {
+  background: var(--card-bg, #1a1a2e);
+}
+
+@media (min-width: 769px) {
+  .shared-watchlist-page .sections-container {
+    flex-direction: row;
+    align-items: flex-start;
+  }
+
+  .shared-watchlist-page .sections-container > * {
+    flex: 0 0 calc(50% - 0.5rem);
+  }
+
+  .shared-watchlist-page .calendar-events {
+    max-height: calc(100vh - 200px);
+  }
+
+  .shared-watchlist-page .watchlist-stocks {
+    max-height: calc(100vh - 200px);
+    overflow: auto;
+  }
 }

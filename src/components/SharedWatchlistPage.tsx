@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getWatchlist } from '../api/watchlistApi';
 import { WatchlistItem } from './WatchlistItem';
+import { CatalystsSection } from './CatalystsSection';
+import { Expander } from './Expander';
 import type { WatchlistWithStocks } from '../../lib/types/watchlist';
 import './SharedWatchlistPage.css';
 
@@ -55,21 +57,29 @@ export function SharedWatchlistPage({ watchlistId }: SharedWatchlistPageProps) {
         </button>
         <span className="watchlist-title">{watchlist.name}</span>
       </div>
-      <WatchlistItem
-        hideHeader
-        watchlist={{
-          id: watchlist.id,
-          name: watchlist.name,
-          items: watchlist.items,
-          updatedAt: watchlist.updatedAt,
-          isSystem: watchlist.isSystem,
-        }}
-        isExpanded={true}
-        isLoading={false}
-        stocks={watchlist.stocks}
-        onToggle={() => {}}
-        onSelectSymbol={(symbol) => navigate(`/${symbol}`)}
-      />
+      <div className="sections-container">
+        <Expander title="Holdings" summary={`${watchlist.stocks.length} stocks`} defaultExpanded={true} className="holdings-section">
+          <WatchlistItem
+            hideHeader
+            watchlist={{
+              id: watchlist.id,
+              name: watchlist.name,
+              items: watchlist.items,
+              updatedAt: watchlist.updatedAt,
+              isSystem: watchlist.isSystem,
+            }}
+            isExpanded={true}
+            isLoading={false}
+            stocks={watchlist.stocks}
+            onToggle={() => {}}
+            onSelectSymbol={(symbol) => navigate(`/${symbol}`)}
+          />
+        </Expander>
+        <CatalystsSection
+          watchlistId={watchlistId}
+          onSelectSymbol={(symbol) => navigate(`/${symbol}`)}
+        />
+      </div>
     </div>
   );
 }

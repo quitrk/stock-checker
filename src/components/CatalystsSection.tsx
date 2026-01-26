@@ -10,6 +10,8 @@ interface CatalystsSectionProps {
   currentSymbol?: string;
   onSelectSymbol?: (symbol: string) => void;
   defaultExpanded?: boolean;
+  /** When provided, fetches catalysts for this watchlist and hides the selector */
+  watchlistId?: string;
 }
 
 const EVENT_ICONS: Record<CatalystEventType, string> = {
@@ -66,7 +68,7 @@ function formatDate(dateStr: string): string {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-export function CatalystsSection({ catalystEvents = [], currentSymbol, onSelectSymbol, defaultExpanded = true }: CatalystsSectionProps) {
+export function CatalystsSection({ catalystEvents = [], currentSymbol, onSelectSymbol, defaultExpanded = true, watchlistId }: CatalystsSectionProps) {
   const { watchlist } = useApp();
   const [selectedSource, setSelectedSource] = useState<string | null>(null);
   const [watchlistEvents, setWatchlistEvents] = useState<CatalystEvent[]>([]);
@@ -76,8 +78,15 @@ export function CatalystsSection({ catalystEvents = [], currentSymbol, onSelectS
   const defaultWatchlists = watchlist.defaultWatchlists;
   const firstAvailableWatchlist = defaultWatchlists[0] || userWatchlists[0];
 
+  // When watchlistId is provided, we're in direct watchlist mode
+  const isDirectWatchlistMode = !!watchlistId;
+
   // Initialize or reset selected source when symbol changes
   useEffect(() => {
+    if (isDirectWatchlistMode) {
+      // Don't use selector in direct watchlist mode
+      return;
+    }
     if (currentSymbol) {
       setSelectedSource('symbol');
       setWatchlistEvents([]);
@@ -85,10 +94,22 @@ export function CatalystsSection({ catalystEvents = [], currentSymbol, onSelectS
       // No symbol - reset to first available watchlist
       setSelectedSource(firstAvailableWatchlist?.id || null);
     }
-  }, [currentSymbol, firstAvailableWatchlist?.id]);
+  }, [currentSymbol, firstAvailableWatchlist?.id, isDirectWatchlistMode]);
 
-  // Fetch watchlist catalysts when a watchlist is selected
+  // Fetch catalysts for direct watchlist mode
   useEffect(() => {
+    if (!watchlistId) return;
+
+    setLoading(true);
+    getWatchlistCatalysts(watchlistId)
+      .then(setWatchlistEvents)
+      .catch(err => console.error('Failed to fetch watchlist catalysts:', err))
+      .finally(() => setLoading(false));
+  }, [watchlistId]);
+
+  // Fetch watchlist catalysts when a watchlist is selected (non-direct mode)
+  useEffect(() => {
+    if (isDirectWatchlistMode) return;
     if (!selectedSource || selectedSource === 'symbol') {
       setWatchlistEvents([]);
       return;
@@ -99,10 +120,14 @@ export function CatalystsSection({ catalystEvents = [], currentSymbol, onSelectS
       .then(setWatchlistEvents)
       .catch(err => console.error('Failed to fetch watchlist catalysts:', err))
       .finally(() => setLoading(false));
-  }, [selectedSource]);
+  }, [selectedSource, isDirectWatchlistMode]);
 
   // Use watchlist events if a watchlist is selected, otherwise use prop events
-  const activeEvents = selectedSource === 'symbol' ? catalystEvents : watchlistEvents;
+  const activeEvents = isDirectWatchlistMode
+    ? watchlistEvents
+    : selectedSource === 'symbol'
+      ? catalystEvents
+      : watchlistEvents;
 
   // Filter to only future events within 1 year and sort by date
   const oneYearFromNow = new Date();
@@ -129,14 +154,19 @@ export function CatalystsSection({ catalystEvents = [], currentSymbol, onSelectS
   // Show section if we have events OR if user has watchlists to select from
   const hasWatchlists = userWatchlists.length > 0 || defaultWatchlists.length > 0;
 
-  // Don't render if no data and no watchlists to select
-  if (futureEvents.length === 0 && recentPastEvents.length === 0 && !hasWatchlists && !loading) {
-    return null;
-  }
+  // In direct watchlist mode, always render (we're loading or have events)
+  if (isDirectWatchlistMode) {
+    // Continue to render
+  } else {
+    // Don't render if no data and no watchlists to select
+    if (futureEvents.length === 0 && recentPastEvents.length === 0 && !hasWatchlists && !loading) {
+      return null;
+    }
 
-  // In empty state mode (no symbol), don't render until we have a selected watchlist
-  if (!currentSymbol && !selectedSource) {
-    return null;
+    // In empty state mode (no symbol), don't render until we have a selected watchlist
+    if (!currentSymbol && !selectedSource) {
+      return null;
+    }
   }
 
   // Generate summary from next upcoming event
@@ -146,11 +176,11 @@ export function CatalystsSection({ catalystEvents = [], currentSymbol, onSelectS
       ? `${recentPastEvents.length} past event${recentPastEvents.length > 1 ? 's' : ''}`
       : undefined;
 
-  const showWatchlistInEvents = selectedSource !== 'symbol';
+  const showWatchlistInEvents = isDirectWatchlistMode || selectedSource !== 'symbol';
 
   return (
-    <Expander title="Catalysts" summary={summary} defaultExpanded={defaultExpanded} ignoreMobileCollapse={!currentSymbol} className="calendar-section">
-      {(hasWatchlists || currentSymbol) && (
+    <Expander title="Catalysts" summary={summary} defaultExpanded={defaultExpanded} ignoreMobileCollapse={!currentSymbol || isDirectWatchlistMode} className="calendar-section">
+      {!isDirectWatchlistMode && (hasWatchlists || currentSymbol) && (
         <div className="catalyst-source-selector">
           <select
             value={selectedSource || ''}
