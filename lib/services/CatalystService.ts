@@ -172,14 +172,12 @@ export class CatalystService {
         .catch(() => ({ source: 'sec', events: [] }))
     );
 
-    // ClinicalTrials.gov - only for biotech/pharma stocks
-    if (ClinicalTrialsProvider.isBiotechIndustry(industry)) {
-      promises.push(
-        this.clinicalTrialsProvider.getCatalystEvents(symbol, companyName)
-          .then(events => ({ source: 'clinicaltrials', events }))
-          .catch(() => ({ source: 'clinicaltrials', events: [] }))
-      );
-    }
+    // ClinicalTrials.gov
+    promises.push(
+      this.clinicalTrialsProvider.getCatalystEvents(symbol, companyName)
+        .then(events => ({ source: 'clinicaltrials', events }))
+        .catch(() => ({ source: 'clinicaltrials', events: [] }))
+    );
 
     // Finnhub - only if configured
     if (this.finnhubProvider.isConfigured()) {
@@ -236,17 +234,15 @@ export class CatalystService {
         })
     );
 
-    // ClinicalTrials.gov - only for biotech/pharma stocks
-    if (ClinicalTrialsProvider.isBiotechIndustry(industry)) {
-      promises.push(
-        this.clinicalTrialsProvider.getCatalystEvents(symbol, companyName)
-          .then(events => ({ source: 'clinicaltrials', events }))
-          .catch(err => {
-            errors.push(`ClinicalTrials: ${err.message}`);
-            return { source: 'clinicaltrials', events: [] };
-          })
-      );
-    }
+    // ClinicalTrials.gov
+    promises.push(
+      this.clinicalTrialsProvider.getCatalystEvents(symbol, companyName)
+        .then(events => ({ source: 'clinicaltrials', events }))
+        .catch(err => {
+          errors.push(`ClinicalTrials: ${err.message}`);
+          return { source: 'clinicaltrials', events: [] };
+        })
+    );
 
     // Finnhub - only if configured
     if (this.finnhubProvider.isConfigured()) {

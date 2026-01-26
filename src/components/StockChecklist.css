@@ -142,21 +142,22 @@
 }
 
 .empty-state-catalysts .expander {
-  flex: 1;
   display: flex;
   flex-direction: column;
 }
 
-.empty-state-catalysts .expander-content {
+.empty-state-catalysts .expander:has(.expander-content.expanded) {
   flex: 1;
-  display: flex;
-  flex-direction: column;
+}
+
+.empty-state-catalysts .expander-content.expanded {
+  flex: 1;
 }
 
 .empty-state-catalysts .expander-content-inner {
-  flex: 1;
   display: flex;
   flex-direction: column;
+  flex: 1;
 }
 
 .empty-state-catalysts .calendar-events {
