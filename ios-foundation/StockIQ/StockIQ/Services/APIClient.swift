@@ -29,6 +29,10 @@ final class APIClient {
     private(set) var isAuthenticated = false
     private(set) var currentUser: User?
 
+    // MARK: - Public
+
+    var baseURL: URL { config.baseURL }
+
     // MARK: - Private
 
     private let config: APIConfig
@@ -78,7 +82,7 @@ final class APIClient {
     // MARK: - Watchlists
 
     func getWatchlists() async throws -> [WatchlistSummary] {
-        let response: WatchlistsResponse = try await get("/api/watchlist/")
+        let response: WatchlistsResponse = try await get("/api/watchlist")
         return response.watchlists
     }
 
@@ -180,7 +184,7 @@ final class APIClient {
         request.setValue("application/json", forHTTPHeaderField: "Accept")
 
         if let token = sessionToken {
-            request.setValue("session=\(token)", forHTTPHeaderField: "Cookie")
+            request.setValue("stock_session=\(token)", forHTTPHeaderField: "Cookie")
         }
 
         if let body = body {

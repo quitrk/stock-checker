@@ -21,7 +21,7 @@ struct Watchlist: Codable, Identifiable {
 
 // MARK: - Watchlist Summary (for list views)
 
-struct WatchlistSummary: Codable, Identifiable {
+struct WatchlistSummary: Codable, Identifiable, Hashable {
     let id: String
     let name: String
     let items: [WatchlistItem]
@@ -34,7 +34,7 @@ struct WatchlistSummary: Codable, Identifiable {
 
 // MARK: - Watchlist Item
 
-struct WatchlistItem: Codable, Identifiable {
+struct WatchlistItem: Codable, Identifiable, Hashable {
     let symbol: String
     var addedAt: String?
     var historicalPrice: Double?

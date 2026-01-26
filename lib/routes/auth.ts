@@ -20,7 +20,8 @@ auth.post('/logout', async (c) => {
 // Initiate Google OAuth
 auth.get('/google', async (c) => {
   const returnTo = c.req.query('returnTo') || '/';
-  const state = await authService.createOAuthState('google', returnTo);
+  const platform = c.req.query('platform') as 'web' | 'ios' | undefined;
+  const state = await authService.createOAuthState('google', returnTo, platform);
 
   const params = new URLSearchParams({
     client_id: process.env.GOOGLE_CLIENT_ID || '',
@@ -84,11 +85,21 @@ auth.get('/google/callback', async (c) => {
     });
 
     const session = await authService.createSession(user.id);
-    setSessionCookie(c, session.id);
 
+    // iOS: redirect to custom URL scheme with session ID
+    if (stateData.platform === 'ios') {
+      return c.redirect(`stockiqme://auth/callback?session=${session.id}&status=success`);
+    }
+
+    // Web: set cookie and redirect
+    setSessionCookie(c, session.id);
     return c.redirect(stateData.returnTo || '/');
   } catch (err) {
     console.error('[Auth] Google callback error:', err);
+    // iOS: redirect with error
+    if (stateData?.platform === 'ios') {
+      return c.redirect('stockiqme://auth/callback?status=error&error=server_error');
+    }
     return c.redirect('/?auth_error=server_error');
   }
 });

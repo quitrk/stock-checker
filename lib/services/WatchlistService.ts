@@ -9,9 +9,7 @@ const MAX_SYMBOLS_PER_WATCHLIST = 100;
 
 function getLogoUrl(symbol: string): string | null {
   const logoKitToken = process.env.LOGOKIT_TOKEN;
-  return logoKitToken
-    ? `https://img.logokit.com/ticker/${symbol.toUpperCase()}?token=${logoKitToken}`
-    : null;
+  return logoKitToken ? `/api/logo/${symbol.toUpperCase()}` : null;
 }
 
 export class WatchlistService {

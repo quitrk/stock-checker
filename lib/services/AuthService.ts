@@ -63,9 +63,13 @@ export class AuthService {
     return this.getUser(session.userId);
   }
 
-  async createOAuthState(provider: 'google' | 'github', returnTo?: string): Promise<string> {
+  async createOAuthState(
+    provider: 'google' | 'github',
+    returnTo?: string,
+    platform?: 'web' | 'ios'
+  ): Promise<string> {
     const state = randomUUID();
-    const data: OAuthState = { provider, timestamp: Date.now(), returnTo };
+    const data: OAuthState = { provider, timestamp: Date.now(), returnTo, platform };
     await setCache(`oauth_state:${state}`, data, OAUTH_STATE_TTL);
     return state;
   }

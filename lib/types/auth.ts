@@ -19,6 +19,7 @@ export interface OAuthState {
   provider: 'google' | 'github';
   returnTo?: string;
   timestamp: number;
+  platform?: 'web' | 'ios';
 }
 
 export interface AuthResponse {
