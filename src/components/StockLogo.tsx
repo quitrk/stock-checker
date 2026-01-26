@@ -1,35 +1,36 @@
 import { useState, useEffect, useRef } from 'react';
 
-const REQUEST_DELAY_MS = 800;
+const REQUEST_DELAY_MS = 200;
 
-type QueueItem = {
-  url: string;
-  resolve: () => void;
-};
-
-const queue: QueueItem[] = [];
+let lastRequestTime = 0;
+const pendingQueue: Array<() => void> = [];
 let isProcessing = false;
 
 async function processQueue() {
-  if (isProcessing || queue.length === 0) return;
+  if (isProcessing) return;
   isProcessing = true;
 
-  while (queue.length > 0) {
-    const item = queue.shift();
-    if (item) {
-      item.resolve();
-      if (queue.length > 0) {
-        await new Promise(r => setTimeout(r, REQUEST_DELAY_MS));
-      }
+  while (pendingQueue.length > 0) {
+    const now = Date.now();
+    const timeSinceLastRequest = now - lastRequestTime;
+
+    if (timeSinceLastRequest < REQUEST_DELAY_MS) {
+      await new Promise(r => setTimeout(r, REQUEST_DELAY_MS - timeSinceLastRequest));
+    }
+
+    const resolve = pendingQueue.shift();
+    if (resolve) {
+      lastRequestTime = Date.now();
+      resolve();
     }
   }
 
   isProcessing = false;
 }
 
-function enqueueLoad(url: string): Promise<void> {
+function enqueueLoad(): Promise<void> {
   return new Promise(resolve => {
-    queue.push({ url, resolve });
+    pendingQueue.push(resolve);
     processQueue();
   });
 }
@@ -41,14 +42,47 @@ interface StockLogoProps {
 }
 
 export function StockLogo({ url, alt = '', className }: StockLogoProps) {
+  const [isInView, setIsInView] = useState(false);
   const [shouldLoad, setShouldLoad] = useState(false);
   const [hasError, setHasError] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
   const mountedRef = useRef(true);
 
+  // Observe visibility with debounce for fast scrolling
   useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          debounceTimer = setTimeout(() => {
+            setIsInView(true);
+            observer.disconnect();
+          }, 150);
+        } else if (debounceTimer) {
+          clearTimeout(debounceTimer);
+          debounceTimer = null;
+        }
+      },
+      { rootMargin: '100px' }
+    );
+
+    observer.observe(el);
+    return () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      observer.disconnect();
+    };
+  }, []);
+
+  // Queue load only when in view
+  useEffect(() => {
+    if (!isInView) return;
     mountedRef.current = true;
 
-    enqueueLoad(url).then(() => {
+    enqueueLoad().then(() => {
       if (mountedRef.current) {
         setShouldLoad(true);
       }
@@ -57,10 +91,10 @@ export function StockLogo({ url, alt = '', className }: StockLogoProps) {
     return () => {
       mountedRef.current = false;
     };
-  }, [url]);
+  }, [isInView, url]);
 
   if (!shouldLoad || hasError) {
-    return <div className={className} />;
+    return <div ref={containerRef} className={className} />;
   }
 
   return (
