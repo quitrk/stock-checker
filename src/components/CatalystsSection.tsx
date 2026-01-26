@@ -179,7 +179,7 @@ export function CatalystsSection({ catalystEvents = [], currentSymbol, onSelectS
   const showWatchlistInEvents = isDirectWatchlistMode || selectedSource !== 'symbol';
 
   return (
-    <Expander title="Catalysts" summary={summary} defaultExpanded={defaultExpanded} ignoreMobileCollapse={!currentSymbol || isDirectWatchlistMode} className="calendar-section">
+    <Expander title="Catalysts" summary={summary} defaultExpanded={defaultExpanded} ignoreMobileCollapse={!currentSymbol || isDirectWatchlistMode} className="calendar-section" loading={loading}>
       {!isDirectWatchlistMode && (hasWatchlists || currentSymbol) && (
         <div className="catalyst-source-selector">
           <select
@@ -209,8 +209,6 @@ export function CatalystsSection({ catalystEvents = [], currentSymbol, onSelectS
           </select>
         </div>
       )}
-
-      {loading && <div className="catalyst-loading">Loading catalysts...</div>}
 
       <div className="calendar-events">
         {futureEvents.length > 0 && (

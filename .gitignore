@@ -41,3 +41,23 @@ server.js
 server.d.ts
 vite.config.js
 vite.config.d.ts
+
+# iOS / Xcode
+*.xcuserstate
+xcuserdata/
+DerivedData/
+build/
+*.ipa
+*.dSYM.zip
+*.dSYM
+*.hmap
+*.mobileprovision
+*.xccheckout
+*.xcscmblueprint
+
+# CocoaPods
+Pods/
+
+# Swift Package Manager
+.build/
+.swiftpm/

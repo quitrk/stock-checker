@@ -120,11 +120,9 @@ export class ChecklistService {
 
     const overallStatus = this.calculateOverallStatus(categories);
 
-    // Generate logo URL using LogoKit (by stock ticker)
+    // Generate logo URL - use proxy endpoint to avoid Cloudflare blocking
     const logoKitToken = process.env.LOGOKIT_TOKEN;
-    const logoUrl = logoKitToken
-      ? `https://img.logokit.com/ticker/${upperSymbol}?token=${logoKitToken}`
-      : null;
+    const logoUrl = logoKitToken ? `/api/logo/${upperSymbol}` : null;
 
     const result: ChecklistResult = {
       symbol: upperSymbol,

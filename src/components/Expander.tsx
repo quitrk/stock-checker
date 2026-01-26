@@ -1,4 +1,5 @@
 import { useState, useEffect, ReactNode } from 'react';
+import { Spinner } from './Spinner';
 import './Expander.css';
 
 const MOBILE_BREAKPOINT = 768;
@@ -16,6 +17,7 @@ interface ExpanderProps {
   headerRight?: ReactNode;
   summary?: ReactNode;
   className?: string;
+  loading?: boolean;
   children: ReactNode;
 }
 
@@ -26,6 +28,7 @@ export function Expander({
   headerRight,
   summary,
   className = '',
+  loading = false,
   children
 }: ExpanderProps) {
   const [expanded, setExpanded] = useState(() => getInitialExpanded(defaultExpanded, ignoreMobileCollapse));
@@ -49,6 +52,7 @@ export function Expander({
         <div className="expander-header-left">
           <span className={`expander-icon ${expanded ? 'expanded' : ''}`}>&#9658;</span>
           <h3 className="expander-title">{title}</h3>
+          {loading && <Spinner size="sm" />}
         </div>
         {showSummary ? (
           <div className="expander-summary">{summary}</div>

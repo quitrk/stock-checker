@@ -65,7 +65,7 @@ const MONTHS: Record<string, string> = {
 
 export class SECService {
   private readonly baseUrl = 'https://data.sec.gov';
-  private readonly userAgent = 'Stock-Checker admin@example.com';
+  private readonly userAgent = 'StockIQ admin@example.com';
   private lastRequestTime = 0;
   private readonly MIN_REQUEST_INTERVAL = 150; // SEC rate limit: ~10 req/sec
 

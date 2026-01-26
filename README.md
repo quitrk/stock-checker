@@ -1,4 +1,4 @@
-# Stock Checker
+# StockIQ
 
 A web application for evaluating stocks based on volume analysis, fundamentals, price analysis, and SEC filings.
 
@@ -38,7 +38,7 @@ vercel
 ## Project Structure
 
 ```
-stock-checker/
+stockiq/
 ├── api/                    # Vercel serverless functions
 │   └── checklist/
 │       └── [symbol].ts     # GET/POST /api/checklist/:symbol

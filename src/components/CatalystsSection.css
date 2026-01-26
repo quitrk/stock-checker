@@ -39,13 +39,6 @@
   color: var(--text-primary, #fff);
 }
 
-.catalyst-loading {
-  padding: 1rem;
-  text-align: center;
-  color: var(--text-secondary, #888);
-  font-size: 0.85rem;
-}
-
 button.event-symbol {
   display: inline-block;
   padding: 0.1rem 0.35rem;
