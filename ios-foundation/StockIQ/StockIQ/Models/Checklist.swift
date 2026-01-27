@@ -23,6 +23,7 @@ struct ChecklistResult: Codable, Identifiable {
     let catalystEvents: [CatalystEvent]
     let analystData: AnalystData?
     let shortInterestData: ShortInterestData?
+    let fdaHistory: FDAHistory?
 
     var id: String { symbol }
 

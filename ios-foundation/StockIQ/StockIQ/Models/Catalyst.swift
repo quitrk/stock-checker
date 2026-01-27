@@ -20,6 +20,52 @@ struct EarningsHistoryEntry: Codable, Identifiable {
     }
 }
 
+// MARK: - FDA History
+
+struct FDAHistory: Codable {
+    let totalApproved: Int
+    let totalRejected: Int
+    let totalPriority: Int
+    let recentDecisions: [FDAHistoryEntry]
+
+    var total: Int { totalApproved + totalRejected }
+
+    var approvalRate: Int {
+        guard total > 0 else { return 0 }
+        return Int(round(Double(totalApproved) / Double(total) * 100))
+    }
+
+    var priorityRate: Int {
+        guard total > 0 else { return 0 }
+        return Int(round(Double(totalPriority) / Double(total) * 100))
+    }
+}
+
+struct FDAHistoryEntry: Codable, Identifiable {
+    let date: String
+    let approved: Bool
+    let drugName: String
+    let reviewPriority: String?
+    let url: String?
+
+    var id: String { "\(date)-\(drugName)" }
+
+    var year: String {
+        guard let eventDate = DateFormatter.apiDate.date(from: date) else { return "" }
+        let year = Calendar.current.component(.year, from: eventDate)
+        return "\(year)"
+    }
+
+    var isPriority: Bool {
+        reviewPriority == "PRIORITY"
+    }
+
+    var fdaURL: URL? {
+        guard let urlString = url else { return nil }
+        return URL(string: urlString)
+    }
+}
+
 // MARK: - Catalyst Event
 
 struct CatalystEvent: Codable, Identifiable {

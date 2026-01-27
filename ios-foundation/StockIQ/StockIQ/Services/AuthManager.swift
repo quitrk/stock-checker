@@ -141,6 +141,19 @@ final class AuthManager: NSObject {
 
 extension AuthManager: ASWebAuthenticationPresentationContextProviding {
     func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
-        presentationAnchor ?? ASPresentationAnchor()
+        if let anchor = presentationAnchor {
+            return anchor
+        }
+        // Get the first window scene and its key window
+        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
+            if let window = windowScene.windows.first {
+                return window
+            }
+            // Fallback using window scene
+            return UIWindow(windowScene: windowScene)
+        }
+        // Should not happen - return empty window with first available scene
+        let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene
+        return UIWindow(windowScene: scene!)
     }
 }

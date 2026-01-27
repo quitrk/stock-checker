@@ -14,6 +14,10 @@ struct NewsSection: View {
             EmptyView()
         } else {
             DisclosureGroup(isExpanded: $isExpanded) {
+                Divider()
+                    .padding(.top, 8)
+                    .padding(.bottom, 8)
+
                 VStack(alignment: .leading, spacing: 0) {
                     ForEach(news) { item in
                         NewsItemRow(item: item)
@@ -24,7 +28,6 @@ struct NewsSection: View {
                         }
                     }
                 }
-                .padding(.top, 8)
             } label: {
                 HStack {
                     Text("Recent News")

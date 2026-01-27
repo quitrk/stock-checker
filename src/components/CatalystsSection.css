@@ -218,6 +218,7 @@ a.calendar-event:hover {
 }
 
 
+
 .event-date {
   color: var(--text-primary, #fff);
   font-size: 0.8rem;

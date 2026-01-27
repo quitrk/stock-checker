@@ -166,7 +166,7 @@ export class ClinicalTrialsProvider {
     const isEstimate = primaryCompletion?.type === 'ESTIMATED' || studyCompletion?.type === 'ESTIMATED';
 
     return {
-      id: `ct-${nctId}`,
+      id: `ct-${symbol}-${nctId}`,
       symbol,
       eventType: 'clinical_trial',
       date: formattedDate,

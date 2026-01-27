@@ -100,6 +100,21 @@ export interface EarningsHistoryEntry {
   priceMove: number | null;
 }
 
+export interface FDAHistoryEntry {
+  date: string;
+  approved: boolean;
+  drugName: string;
+  reviewPriority: 'PRIORITY' | 'STANDARD' | null;
+  url: string | null;
+}
+
+export interface FDAHistory {
+  totalApproved: number;
+  totalRejected: number;
+  totalPriority: number;
+  recentDecisions: FDAHistoryEntry[];
+}
+
 export interface CatalystEvent {
   id: string;
   symbol: string;
@@ -146,4 +161,5 @@ export interface ChecklistResult {
   analystData: AnalystData | null;
   shortInterestData: ShortInterestData | null;
   earningsPerformance: EarningsPerformance | null;
+  fdaHistory: FDAHistory | null;
 }

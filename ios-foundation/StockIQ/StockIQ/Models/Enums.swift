@@ -82,7 +82,7 @@ enum CatalystEventType: String, Codable, CaseIterable {
         case .insiderTransaction: return "person.badge.plus"
         case .executiveChange: return "person.2.fill"
         case .acquisition: return "building.2.fill"
-        case .partnership: return "handshake.fill"
+        case .partnership: return "link"
         }
     }
 

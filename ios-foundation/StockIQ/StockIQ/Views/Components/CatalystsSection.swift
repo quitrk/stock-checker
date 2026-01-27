@@ -83,9 +83,29 @@ enum CatalystFilter: String, CaseIterable, Identifiable {
 struct CatalystsSection: View {
     let catalystEvents: [CatalystEvent]
     var currentSymbol: String? = nil
+    var embedded: Bool = false
 
     @State private var isExpanded = true
     @State private var selectedFilters: Set<CatalystFilter>? = nil
+    @State private var selectedSegment: CatalystSegment = .upcoming
+    @State private var showFilterSheet = false
+
+    private enum CatalystSegment: String, CaseIterable {
+        case upcoming = "Upcoming"
+        case past = "Past"
+    }
+
+    private var availableFilters: [CatalystFilter] {
+        CatalystFilter.allCases.filter { filter in
+            catalystEvents.contains { filter.matches($0) }
+        }
+    }
+
+    private var activeFilterCount: Int {
+        guard let selected = selectedFilters else { return 0 }
+        let allSelected = selected.count == availableFilters.count
+        return allSelected ? 0 : selected.count
+    }
 
     /// Compute default filters based on available events
     private var effectiveFilters: Set<CatalystFilter> {
@@ -137,63 +157,77 @@ struct CatalystsSection: View {
         return nil
     }
 
+    private var catalystContent: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // Controls row: Segmented control + Filter button
+            HStack(spacing: 12) {
+                // Segmented control (only if both have events)
+                if !futureEvents.isEmpty && !recentPastEvents.isEmpty {
+                    Picker("", selection: $selectedSegment) {
+                        Text("Upcoming").tag(CatalystSegment.upcoming)
+                        Text("Past").tag(CatalystSegment.past)
+                    }
+                    .pickerStyle(.segmented)
+                }
+
+                // Filter button (only if multiple filter types available)
+                if availableFilters.count > 1 {
+                    Button {
+                        showFilterSheet = true
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "line.3.horizontal.decrease.circle")
+                            if activeFilterCount > 0 {
+                                Text("\(activeFilterCount)")
+                                    .font(.caption2)
+                                    .fontWeight(.bold)
+                            }
+                        }
+                        .foregroundStyle(activeFilterCount > 0 ? .blue : .secondary)
+                    }
+                }
+            }
+            .padding(.top, embedded ? 0 : 4)
+
+            // Show selected segment's events (or the only available one)
+            if selectedSegment == .upcoming && !futureEvents.isEmpty || recentPastEvents.isEmpty {
+                ForEach(futureEvents) { event in
+                    CatalystEventRowLink(event: event, showSymbol: currentSymbol == nil)
+                }
+            } else {
+                ForEach(recentPastEvents) { event in
+                    CatalystEventRowLink(event: event, showSymbol: currentSymbol == nil, isPast: true)
+                }
+            }
+        }
+    }
+
+    private var filterSheet: some View {
+        CatalystFilterSheet(
+            availableFilters: availableFilters,
+            selectedFilters: effectiveFilters,
+            onApply: { newFilters in
+                selectedFilters = newFilters
+            }
+        )
+        .presentationDetents([.medium])
+    }
+
     var body: some View {
         if futureEvents.isEmpty && recentPastEvents.isEmpty {
             EmptyView()
+        } else if embedded {
+            catalystContent
+                .sheet(isPresented: $showFilterSheet) {
+                    filterSheet
+                }
         } else {
             DisclosureGroup(isExpanded: $isExpanded) {
-                VStack(alignment: .leading, spacing: 8) {
-                    // Filter chips - only show filters that have matching events
-                    let availableFilters = CatalystFilter.allCases.filter { filter in
-                        catalystEvents.contains { filter.matches($0) }
-                    }
-                    if availableFilters.count > 1 {
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 8) {
-                                ForEach(availableFilters) { filter in
-                                    FilterChip(
-                                        filter: filter,
-                                        isSelected: effectiveFilters.contains(filter),
-                                        onTap: {
-                                            var current = effectiveFilters
-                                            if current.contains(filter) {
-                                                current.remove(filter)
-                                            } else {
-                                                current.insert(filter)
-                                            }
-                                            selectedFilters = current
-                                        }
-                                    )
-                                }
-                            }
-                        }
-                        .padding(.top, 4)
-                    }
+                Divider()
+                    .padding(.top, 8)
+                    .padding(.bottom, 8)
 
-                    if !futureEvents.isEmpty {
-                        Text("Upcoming")
-                            .font(.subheadline)
-                            .fontWeight(.semibold)
-                            .foregroundStyle(.secondary)
-                            .padding(.top, 8)
-
-                        ForEach(futureEvents) { event in
-                            CatalystEventRowLink(event: event, showSymbol: currentSymbol == nil)
-                        }
-                    }
-
-                    if !recentPastEvents.isEmpty {
-                        Text("Past")
-                            .font(.subheadline)
-                            .fontWeight(.semibold)
-                            .foregroundStyle(.secondary)
-                            .padding(.top, futureEvents.isEmpty ? 8 : 4)
-
-                        ForEach(recentPastEvents) { event in
-                            CatalystEventRowLink(event: event, showSymbol: currentSymbol == nil, isPast: true)
-                        }
-                    }
-                }
+                catalystContent
             } label: {
                 HStack {
                     Text("Catalysts")
@@ -210,6 +244,9 @@ struct CatalystsSection: View {
             .background(Color(.secondarySystemGroupedBackground))
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .padding(.horizontal)
+            .sheet(isPresented: $showFilterSheet) {
+                filterSheet
+            }
         }
     }
 
@@ -221,6 +258,78 @@ struct CatalystsSection: View {
         let formatter = DateFormatter()
         formatter.dateFormat = sameYear ? "MMM d" : "MMM d, yyyy"
         return formatter.string(from: date)
+    }
+}
+
+// MARK: - Filter Sheet
+
+private struct CatalystFilterSheet: View {
+    let availableFilters: [CatalystFilter]
+    let selectedFilters: Set<CatalystFilter>
+    let onApply: (Set<CatalystFilter>) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var localSelection: Set<CatalystFilter> = []
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section {
+                    ForEach(availableFilters) { filter in
+                        Button {
+                            if localSelection.contains(filter) {
+                                localSelection.remove(filter)
+                            } else {
+                                localSelection.insert(filter)
+                            }
+                        } label: {
+                            HStack {
+                                Image(systemName: filter.icon)
+                                    .foregroundStyle(filter.color)
+                                    .frame(width: 24)
+                                Text(filter.label)
+                                    .foregroundStyle(.primary)
+                                Spacer()
+                                if localSelection.contains(filter) {
+                                    Image(systemName: "checkmark")
+                                        .foregroundStyle(.blue)
+                                }
+                            }
+                        }
+                    }
+                } header: {
+                    Text("Show Events")
+                }
+
+                Section {
+                    Button("Select All") {
+                        localSelection = Set(availableFilters)
+                    }
+                    Button("Clear All") {
+                        localSelection = []
+                    }
+                }
+            }
+            .navigationTitle("Filter Catalysts")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Apply") {
+                        onApply(localSelection)
+                        dismiss()
+                    }
+                    .fontWeight(.semibold)
+                }
+            }
+            .onAppear {
+                localSelection = selectedFilters
+            }
+        }
     }
 }
 
@@ -315,37 +424,35 @@ private struct CatalystEventRow: View {
 
                 Spacer()
 
-                HStack(spacing: 8) {
-                    VStack(alignment: .trailing, spacing: 2) {
-                        Text(formatDate(event.date))
-                            .font(.footnote)
-                            .foregroundStyle(isPast ? .secondary : .primary)
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text(formatDate(event.date))
+                        .font(.footnote)
+                        .foregroundStyle(isPast ? .secondary : .primary)
 
-                        if event.isEstimate {
-                            Text("Est")
-                                .font(.caption)
-                                .padding(.horizontal, 5)
-                                .padding(.vertical, 2)
-                                .background(Color.orange.opacity(0.2))
-                                .foregroundStyle(.orange)
-                                .clipShape(Capsule())
-                        }
-                    }
-
-                    if hasLink {
-                        Image(systemName: "arrow.up.right")
-                            .font(.footnote)
-                            .foregroundStyle(.tertiary)
+                    if event.isEstimate {
+                        Text("Est")
+                            .font(.caption)
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 2)
+                            .background(Color.orange.opacity(0.2))
+                            .foregroundStyle(.orange)
+                            .clipShape(Capsule())
                     }
                 }
+
+                Image(systemName: "arrow.up.right")
+                    .font(.footnote)
+                    .foregroundStyle(.tertiary)
+                    .opacity(hasLink ? 1 : 0)
             }
 
             // Earnings performance history
             if let history = event.earningsHistory, !history.isEmpty {
                 EarningsPerformanceRow(history: history)
             }
+
         }
-        .padding(.vertical, 6)
+        .padding(.vertical, 10)
         .opacity(isPast ? 0.7 : 1)
     }
 

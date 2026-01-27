@@ -110,7 +110,8 @@ extension ChecklistResult {
             newsSummary: nil,
             catalystEvents: [],
             analystData: nil,
-            shortInterestData: nil
+            shortInterestData: nil,
+            fdaHistory: nil
         )
     }
 }

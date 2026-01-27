@@ -1,6 +1,7 @@
 import { yahooFinance, type FundamentalData, type MarketData, type HistoricalBar, type ShortInterestData } from './providers/index.js';
 import { SECService, SECFilingInfo } from './SECService.js';
 import { CatalystService } from './CatalystService.js';
+import { FDAProvider, type FDADecision } from './providers/FDAProvider.js';
 import { setCache, cacheKey } from './CacheService.js';
 import type {
   ChecklistResult,
@@ -11,6 +12,7 @@ import type {
   CatalystEvent,
   AnalystData as AnalystDataType,
   EarningsPerformance,
+  FDAHistory,
 } from '../types/index.js';
 
 interface VolumeAnalysis {
@@ -23,11 +25,13 @@ interface VolumeAnalysis {
 export class ChecklistService {
   private secService: SECService;
   private catalystService: CatalystService;
+  private fdaProvider: FDAProvider;
 
   constructor() {
     this.secService = new SECService();
     // Share providers with CatalystService to reuse cached data
     this.catalystService = new CatalystService(yahooFinance, this.secService);
+    this.fdaProvider = new FDAProvider();
   }
 
   async generateChecklist(symbol: string, options: { skipCache?: boolean; ttl?: number } = {}): Promise<ChecklistResult> {
@@ -134,12 +138,41 @@ export class ChecklistService {
       this.attachEarningsToEvents(catalystEvents, earningsPerformance);
     }
 
+    // Fetch FDA history for biotech companies
+    let fdaHistory: FDAHistory | null = null;
+    let fdaCategory: ChecklistCategory | null = null;
+    const isBiotech = industry.toLowerCase().includes('biotech') ||
+                      industry.toLowerCase().includes('pharma') ||
+                      industry.toLowerCase().includes('drug');
+    if (isBiotech) {
+      try {
+        const fdaDecisions = await this.fdaProvider.getFDAHistory(companyName);
+        if (fdaDecisions.length > 0) {
+          const totalApproved = fdaDecisions.filter(d => d.approved).length;
+          const totalRejected = fdaDecisions.filter(d => !d.approved).length;
+          const totalPriority = fdaDecisions.filter(d => d.reviewPriority === 'PRIORITY').length;
+          const recentDecisions = fdaDecisions.slice(0, 5).map(decision => ({
+            date: decision.date,
+            approved: decision.approved,
+            drugName: decision.drugName,
+            reviewPriority: decision.reviewPriority,
+            url: decision.url,
+          }));
+          fdaHistory = { totalApproved, totalRejected, totalPriority, recentDecisions };
+          fdaCategory = this.buildFDATrackRecord(totalApproved, totalRejected, totalPriority);
+        }
+      } catch (error) {
+        console.error(`[ChecklistService] FDA history error:`, error);
+      }
+    }
+
     const categories: ChecklistCategory[] = [
       this.buildVolumeAnalysis(marketData, volumeAnalysis),
       this.buildPriceAnalysis(marketData, daysBelow1Dollar),
       this.buildShortInterestCategory(shortInterestData),
       this.buildFundamentalsCategory(fundamentalData),
       this.buildRiskIndicators(secFilingInfo, marketData?.price ?? 0),
+      ...(fdaCategory ? [fdaCategory] : []),
     ];
 
     const overallStatus = this.calculateOverallStatus(categories);
@@ -167,6 +200,7 @@ export class ChecklistService {
       analystData,
       shortInterestData,
       earningsPerformance,
+      fdaHistory,
     };
 
     // Cache the result if no errors
@@ -726,6 +760,69 @@ export class ChecklistService {
     };
   }
 
+  private buildFDATrackRecord(totalApproved: number, totalRejected: number, totalPriority: number): ChecklistCategory {
+    const items: ChecklistItem[] = [];
+    const total = totalApproved + totalRejected;
+    const approvalRate = total > 0 ? Math.round((totalApproved / total) * 100) : 0;
+    const priorityRate = total > 0 ? Math.round((totalPriority / total) * 100) : 0;
+
+    items.push({
+      id: 'fda_approval_rate',
+      label: 'Approval Rate',
+      description: 'Historical FDA approval success rate for this company.',
+      value: approvalRate,
+      displayValue: `${approvalRate}%`,
+      status: this.getFDAApprovalStatus(approvalRate),
+      thresholds: {
+        safe: '≥80%',
+        warning: '50-79%',
+        danger: '<50%',
+      },
+    });
+
+    items.push({
+      id: 'fda_total_approved',
+      label: 'Total Approved',
+      description: 'Number of FDA-approved drugs/therapies.',
+      value: totalApproved,
+      displayValue: `${totalApproved}`,
+      status: 'safe',
+    });
+
+    items.push({
+      id: 'fda_total_rejected',
+      label: 'Total Rejected',
+      description: 'Number of FDA rejections (CRLs, refusals).',
+      value: totalRejected,
+      displayValue: `${totalRejected}`,
+      status: totalRejected > totalApproved ? 'danger' : totalRejected > 0 ? 'warning' : 'safe',
+    });
+
+    items.push({
+      id: 'fda_priority_rate',
+      label: 'Priority Review Rate',
+      description: 'Percentage of submissions granted priority review status.',
+      value: priorityRate,
+      displayValue: `${priorityRate}%`,
+      status: 'safe',
+    });
+
+    return {
+      id: 'fda_track_record',
+      name: 'FDA Track Record',
+      description: 'Historical FDA approval history and success rate',
+      items,
+      status: this.getCategoryStatus(items),
+      summaryItemId: 'fda_approval_rate',
+    };
+  }
+
+  private getFDAApprovalStatus(rate: number): ChecklistStatus {
+    if (rate >= 80) return 'safe';
+    if (rate >= 50) return 'warning';
+    return 'danger';
+  }
+
   private getVolumeRatioStatus(ratio: number): ChecklistStatus {
     if (ratio >= 20) return 'danger';
     if (ratio >= 5) return 'warning';
@@ -873,4 +970,5 @@ export class ChecklistService {
       }
     }
   }
+
 }

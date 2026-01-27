@@ -177,8 +177,8 @@ struct WatchlistDetailView: View {
                         ContentUnavailableView("No Catalysts", systemImage: "calendar.badge.exclamationmark")
                     } else {
                         ScrollView {
-                            CatalystsSection(catalystEvents: catalysts)
-                                .padding(.vertical)
+                            CatalystsSection(catalystEvents: catalysts, embedded: true)
+                                .padding()
                         }
                     }
                 }
