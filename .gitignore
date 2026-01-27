@@ -19,6 +19,9 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+# SEC filings cache (local analysis only)
+data/sec-filings/
+
 # IDE
 .idea/
 .vscode/

@@ -74,7 +74,7 @@ export class CatalystService {
 
       // Step 3: Fetch catalysts with controlled concurrency
       const CONCURRENCY = 3;
-      const results: { symbol: string; events: CatalystEvent[]; companyName: string; industry: string }[] = [];
+      const results: { symbol: string; events: CatalystEvent[]; secLastFetchedDate: string | null; companyName: string; industry: string }[] = [];
 
       const BATCH_DELAY = 1000; // 1 second between batches
 
@@ -87,15 +87,15 @@ export class CatalystService {
             const industry = marketData?.industry ?? 'Unknown';
 
             try {
-              const events = await this.getCatalystEventsQuiet(symbol, companyName, industry);
-              return { symbol, events, companyName, industry, error: false };
+              const result = await this.getCatalystEvents(symbol, companyName, industry);
+              return { symbol, events: result.events, secLastFetchedDate: result.secLastFetchedDate, companyName, industry, error: false };
             } catch (error) {
-              return { symbol, events: [], companyName, industry, error: true };
+              return { symbol, events: [], secLastFetchedDate: null, companyName, industry, error: true };
             }
           })
         );
         for (const r of batchResults) {
-          results.push({ symbol: r.symbol, events: r.events, companyName: r.companyName, industry: r.industry });
+          results.push({ symbol: r.symbol, events: r.events, secLastFetchedDate: r.secLastFetchedDate, companyName: r.companyName, industry: r.industry });
           if (r.error) fetchErrors++;
         }
 
@@ -106,14 +106,17 @@ export class CatalystService {
       }
 
       // Step 4: Update cache and collect events
-      for (const { symbol, events, companyName, industry } of results) {
+      for (const { symbol, events, secLastFetchedDate, companyName, industry } of results) {
         allEvents.push(...events);
         fetchedEventsCount += events.length;
 
-        // Update cache with catalyst events
+        // Update cache with catalyst events and secLastFetchedDate
         const existingCache = await getCached<ChecklistResult>(cacheKey('checklist', symbol));
         if (existingCache) {
           existingCache.catalystEvents = events;
+          if (secLastFetchedDate) {
+            existingCache.secLastFetchedDate = secLastFetchedDate;
+          }
           await setCache(cacheKey('checklist', symbol), existingCache);
           cacheUpdates++;
         } else {
@@ -122,6 +125,7 @@ export class CatalystService {
             companyName,
             industry,
             catalystEvents: events,
+            secLastFetchedDate: secLastFetchedDate || undefined,
             timestamp: new Date().toISOString(),
           };
           await setCache(cacheKey('checklist', symbol), minimalEntry);
@@ -146,136 +150,49 @@ export class CatalystService {
   }
 
   /**
-   * Internal quiet version of getCatalystEvents (no per-symbol logging)
-   */
-  private async getCatalystEventsQuiet(
-    symbol: string,
-    companyName: string,
-    industry: string
-  ): Promise<CatalystEvent[]> {
-    const allEvents: CatalystEvent[] = [];
-
-    // Fetch from all sources in parallel
-    const promises: Promise<{ source: string; events: CatalystEvent[] }>[] = [];
-
-    // Yahoo Finance - always fetch
-    promises.push(
-      this.yahooProvider.getCatalystEvents(symbol)
-        .then(events => ({ source: 'yahoo', events }))
-        .catch(() => ({ source: 'yahoo', events: [] }))
-    );
-
-    // SEC - always fetch
-    promises.push(
-      this.secService.getCatalystEvents(symbol, industry)
-        .then(events => ({ source: 'sec', events }))
-        .catch(() => ({ source: 'sec', events: [] }))
-    );
-
-    // ClinicalTrials.gov
-    promises.push(
-      this.clinicalTrialsProvider.getCatalystEvents(symbol, companyName)
-        .then(events => ({ source: 'clinicaltrials', events }))
-        .catch(() => ({ source: 'clinicaltrials', events: [] }))
-    );
-
-    // Finnhub - only if configured
-    if (this.finnhubProvider.isConfigured()) {
-      promises.push(
-        this.finnhubProvider.getCatalystEvents(symbol)
-          .then(events => ({ source: 'finnhub', events }))
-          .catch(() => ({ source: 'finnhub', events: [] }))
-      );
-    }
-
-    const results = await Promise.all(promises);
-    for (const result of results) {
-      allEvents.push(...result.events);
-    }
-
-    const deduped = this.deduplicateEvents(allEvents);
-    deduped.sort((a, b) => a.date.localeCompare(b.date));
-    return deduped;
-  }
-
-  /**
    * Get all catalyst events for a symbol from all configured data sources
    */
   async getCatalystEvents(
     symbol: string,
     companyName: string,
     industry: string
-  ): Promise<CatalystEvent[]> {
-    console.log(`[CatalystService] Fetching catalyst events for ${symbol}...`);
-
+  ): Promise<{ events: CatalystEvent[]; secLastFetchedDate: string | null }> {
     const allEvents: CatalystEvent[] = [];
-    const errors: string[] = [];
+    let secLastFetchedDate: string | null = null;
 
     // Fetch from all sources in parallel
-    const promises: Promise<{ source: string; events: CatalystEvent[] }>[] = [];
-
-    // Yahoo Finance - always fetch
-    promises.push(
+    const [yahooResult, secResult, ctResult, finnhubResult] = await Promise.all([
+      // Yahoo Finance
       this.yahooProvider.getCatalystEvents(symbol)
-        .then(events => ({ source: 'yahoo', events }))
-        .catch(err => {
-          errors.push(`Yahoo: ${err.message}`);
-          return { source: 'yahoo', events: [] };
-        })
-    );
-
-    // SEC - always fetch (pass industry for PDUFA parsing on biotech stocks)
-    promises.push(
+        .then(events => ({ events }))
+        .catch(() => ({ events: [] })),
+      // SEC
       this.secService.getCatalystEvents(symbol, industry)
-        .then(events => ({ source: 'sec', events }))
-        .catch(err => {
-          errors.push(`SEC: ${err.message}`);
-          return { source: 'sec', events: [] };
-        })
-    );
-
-    // ClinicalTrials.gov
-    promises.push(
+        .then(result => result)
+        .catch(() => ({ events: [], secLastFetchedDate: null })),
+      // ClinicalTrials.gov
       this.clinicalTrialsProvider.getCatalystEvents(symbol, companyName)
-        .then(events => ({ source: 'clinicaltrials', events }))
-        .catch(err => {
-          errors.push(`ClinicalTrials: ${err.message}`);
-          return { source: 'clinicaltrials', events: [] };
-        })
-    );
+        .then(events => ({ events }))
+        .catch(() => ({ events: [] })),
+      // Finnhub
+      this.finnhubProvider.isConfigured()
+        ? this.finnhubProvider.getCatalystEvents(symbol)
+            .then(events => ({ events }))
+            .catch(() => ({ events: [] }))
+        : Promise.resolve({ events: [] }),
+    ]);
 
-    // Finnhub - only if configured
-    if (this.finnhubProvider.isConfigured()) {
-      promises.push(
-        this.finnhubProvider.getCatalystEvents(symbol)
-          .then(events => ({ source: 'finnhub', events }))
-          .catch(err => {
-            errors.push(`Finnhub: ${err.message}`);
-            return { source: 'finnhub', events: [] };
-          })
-      );
-    }
+    allEvents.push(...yahooResult.events);
+    allEvents.push(...secResult.events);
+    secLastFetchedDate = secResult.secLastFetchedDate;
+    allEvents.push(...ctResult.events);
+    allEvents.push(...finnhubResult.events);
 
-    // Wait for all sources
-    const results = await Promise.all(promises);
-
-    for (const result of results) {
-      allEvents.push(...result.events);
-    }
-
-    if (errors.length > 0) {
-      console.warn(`[CatalystService] Some sources had errors:`, errors);
-    }
-
-    // Deduplicate events (same type on same date from different sources)
     const deduped = this.deduplicateEvents(allEvents);
-
-    // Sort by date (ascending)
     deduped.sort((a, b) => a.date.localeCompare(b.date));
-
-    console.log(`[CatalystService] Total catalyst events for ${symbol}: ${deduped.length}`);
-    return deduped;
+    return { events: deduped, secLastFetchedDate };
   }
+
 
   /**
    * Deduplicate events that are essentially the same from different sources

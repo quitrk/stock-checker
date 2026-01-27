@@ -41,8 +41,14 @@ enum CatalystEventType: String, Codable, CaseIterable {
     case reverseSplit = "reverse_split"
     case analystRating = "analyst_rating"
     case clinicalTrial = "clinical_trial"
+    case clinicalReadout = "clinical_readout"
+    case clinicalMilestone = "clinical_milestone"
     case fdaApproval = "fda_approval"
+    case fdaDesignation = "fda_designation"
+    case fdaRejection = "fda_rejection"
+    case adcom
     case pdufaDate = "pdufa_date"
+    case ndaBlaSubmission = "nda_bla_submission"
     case secFiling = "sec_filing"
     case insiderTransaction = "insider_transaction"
     case executiveChange = "executive_change"
@@ -59,8 +65,14 @@ enum CatalystEventType: String, Codable, CaseIterable {
         case .reverseSplit: return "Reverse Split"
         case .analystRating: return "Analyst Rating"
         case .clinicalTrial: return "Clinical Trial"
+        case .clinicalReadout: return "Data Readout"
+        case .clinicalMilestone: return "Trial Milestone"
         case .fdaApproval: return "FDA Approval"
+        case .fdaDesignation: return "FDA Designation"
+        case .fdaRejection: return "FDA Rejection"
+        case .adcom: return "AdCom Meeting"
         case .pdufaDate: return "PDUFA Date"
+        case .ndaBlaSubmission: return "NDA/BLA Filing"
         case .secFiling: return "SEC Filing"
         case .insiderTransaction: return "Insider Trade"
         case .executiveChange: return "Executive Change"
@@ -76,8 +88,11 @@ enum CatalystEventType: String, Codable, CaseIterable {
         case .stockSplit: return "arrow.up.right.and.arrow.down.left"
         case .reverseSplit: return "arrow.down.left.and.arrow.up.right"
         case .analystRating: return "star.fill"
-        case .clinicalTrial: return "cross.case.fill"
-        case .fdaApproval, .pdufaDate: return "checkmark.seal.fill"
+        case .clinicalTrial, .clinicalReadout, .clinicalMilestone: return "cross.case.fill"
+        case .fdaApproval, .pdufaDate, .fdaDesignation: return "checkmark.seal.fill"
+        case .fdaRejection: return "xmark.seal.fill"
+        case .adcom: return "person.3.fill"
+        case .ndaBlaSubmission: return "doc.badge.arrow.up.fill"
         case .secFiling: return "doc.text.fill"
         case .insiderTransaction: return "person.badge.plus"
         case .executiveChange: return "person.2.fill"
@@ -93,7 +108,9 @@ enum CatalystEventType: String, Codable, CaseIterable {
         case .stockSplit: return .purple
         case .reverseSplit: return .orange
         case .analystRating: return .mint
-        case .clinicalTrial, .fdaApproval, .pdufaDate: return .pink
+        case .clinicalTrial, .clinicalReadout, .clinicalMilestone: return .pink
+        case .fdaApproval, .pdufaDate, .fdaDesignation, .adcom, .ndaBlaSubmission: return .pink
+        case .fdaRejection: return .red
         case .secFiling: return .secondary
         case .insiderTransaction: return .indigo
         case .executiveChange: return .brown

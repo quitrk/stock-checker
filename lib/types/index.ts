@@ -84,8 +84,14 @@ export type CatalystEventType =
   | 'reverse_split'
   | 'analyst_rating'
   | 'clinical_trial'
+  | 'clinical_readout'
+  | 'clinical_milestone'
   | 'fda_approval'
+  | 'fda_designation'
+  | 'fda_rejection'
+  | 'adcom'
   | 'pdufa_date'
+  | 'nda_bla_submission'
   | 'sec_filing'
   | 'insider_transaction'
   | 'executive_change'
@@ -162,4 +168,5 @@ export interface ChecklistResult {
   shortInterestData: ShortInterestData | null;
   earningsPerformance: EarningsPerformance | null;
   fdaHistory: FDAHistory | null;
+  secLastFetchedDate?: string; // YYYY-MM-DD of most recent SEC filing processed
 }

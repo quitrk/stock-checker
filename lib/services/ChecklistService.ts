@@ -109,8 +109,10 @@ export class ChecklistService {
     if (newsResult.status === 'fulfilled') {
       news = newsResult.value;
     }
+    let secLastFetchedDate: string | null = null;
     if (catalystResult.status === 'fulfilled') {
-      catalystEvents = catalystResult.value;
+      catalystEvents = catalystResult.value.events;
+      secLastFetchedDate = catalystResult.value.secLastFetchedDate;
     }
     if (analystResult.status === 'fulfilled') {
       analystData = analystResult.value;
@@ -201,6 +203,7 @@ export class ChecklistService {
       shortInterestData,
       earningsPerformance,
       fdaHistory,
+      secLastFetchedDate: secLastFetchedDate || undefined,
     };
 
     // Cache the result if no errors
