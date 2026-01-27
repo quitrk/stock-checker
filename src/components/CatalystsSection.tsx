@@ -50,6 +50,20 @@ const EVENT_LABELS: Record<CatalystEventType, string> = {
   partnership: 'Partnership',
 };
 
+type CatalystFilter = 'earnings' | 'pdufa' | 'fda' | 'phase1' | 'phase2' | 'phase3' | 'dividends' | 'sec' | 'other';
+
+const FILTER_CONFIG: { key: CatalystFilter; label: string; icon: string; match: (e: CatalystEvent) => boolean }[] = [
+  { key: 'earnings', label: 'Earnings', icon: '📊', match: e => e.eventType === 'earnings' || e.eventType === 'earnings_call' },
+  { key: 'pdufa', label: 'PDUFA', icon: '🗓️', match: e => e.eventType === 'pdufa_date' },
+  { key: 'fda', label: 'FDA', icon: '💊', match: e => e.eventType === 'fda_approval' },
+  { key: 'phase1', label: 'Phase 1', icon: '🧬', match: e => e.eventType === 'clinical_trial' && (e.title.toLowerCase().includes('phase 1') || e.title.toLowerCase().includes('phase1') || e.trialPhases?.some(p => p.includes('1'))) },
+  { key: 'phase2', label: 'Phase 2', icon: '🧬', match: e => e.eventType === 'clinical_trial' && (e.title.toLowerCase().includes('phase 2') || e.title.toLowerCase().includes('phase2') || e.trialPhases?.some(p => p.includes('2'))) },
+  { key: 'phase3', label: 'Phase 3', icon: '🧬', match: e => e.eventType === 'clinical_trial' && (e.title.toLowerCase().includes('phase 3') || e.title.toLowerCase().includes('phase3') || e.trialPhases?.some(p => p.includes('3'))) },
+  { key: 'dividends', label: 'Dividends', icon: '💰', match: e => e.eventType === 'ex_dividend' || e.eventType === 'dividend_payment' },
+  { key: 'sec', label: 'SEC', icon: '📄', match: e => e.eventType === 'sec_filing' },
+  { key: 'other', label: 'Other', icon: '📌', match: e => ['analyst_rating', 'insider_transaction', 'executive_change', 'acquisition', 'partnership', 'stock_split', 'reverse_split'].includes(e.eventType) },
+];
+
 function isFutureDate(dateStr: string): boolean {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -73,6 +87,7 @@ export function CatalystsSection({ catalystEvents = [], currentSymbol, onSelectS
   const [selectedSource, setSelectedSource] = useState<string | null>(null);
   const [watchlistEvents, setWatchlistEvents] = useState<CatalystEvent[]>([]);
   const [loading, setLoading] = useState(false);
+  const [selectedFilters, setSelectedFilters] = useState<Set<CatalystFilter>>(new Set(['pdufa', 'phase2', 'phase3']));
 
   const userWatchlists = watchlist.watchlists;
   const defaultWatchlists = watchlist.defaultWatchlists;
@@ -81,20 +96,21 @@ export function CatalystsSection({ catalystEvents = [], currentSymbol, onSelectS
   // When watchlistId is provided, we're in direct watchlist mode
   const isDirectWatchlistMode = !!watchlistId;
 
-  // Initialize or reset selected source when symbol changes
+  // Initialize selected source on mount, and handle when symbol is cleared
   useEffect(() => {
-    if (isDirectWatchlistMode) {
-      // Don't use selector in direct watchlist mode
-      return;
-    }
-    if (currentSymbol) {
-      setSelectedSource('symbol');
-      setWatchlistEvents([]);
-    } else {
-      // No symbol - reset to first available watchlist
+    if (isDirectWatchlistMode) return;
+    if (selectedSource === null) {
+      // Initial mount - set default source
+      if (currentSymbol) {
+        setSelectedSource('symbol');
+      } else {
+        setSelectedSource(firstAvailableWatchlist?.id || null);
+      }
+    } else if (selectedSource === 'symbol' && !currentSymbol) {
+      // Symbol was cleared - switch to first watchlist
       setSelectedSource(firstAvailableWatchlist?.id || null);
     }
-  }, [currentSymbol, firstAvailableWatchlist?.id, isDirectWatchlistMode]);
+  }, [currentSymbol, selectedSource, firstAvailableWatchlist?.id, isDirectWatchlistMode]);
 
   // Fetch catalysts for direct watchlist mode
   useEffect(() => {
@@ -129,11 +145,34 @@ export function CatalystsSection({ catalystEvents = [], currentSymbol, onSelectS
       ? catalystEvents
       : watchlistEvents;
 
+  // Apply filter if any are selected, but fall back to all events if no matches
+  const getFilteredEvents = () => {
+    if (selectedFilters.size === 0) return activeEvents;
+    const filtered = activeEvents.filter(event =>
+      FILTER_CONFIG.some(filter => selectedFilters.has(filter.key) && filter.match(event))
+    );
+    // If selected filters don't match anything, show all events
+    return filtered.length > 0 ? filtered : activeEvents;
+  };
+  const filteredEvents = getFilteredEvents();
+
+  const toggleFilter = (filterKey: CatalystFilter) => {
+    setSelectedFilters(prev => {
+      const next = new Set(prev);
+      if (next.has(filterKey)) {
+        next.delete(filterKey);
+      } else {
+        next.add(filterKey);
+      }
+      return next;
+    });
+  };
+
   // Filter to only future events within 1 year and sort by date
   const oneYearFromNow = new Date();
   oneYearFromNow.setFullYear(oneYearFromNow.getFullYear() + 1);
 
-  const futureEvents = activeEvents
+  const futureEvents = filteredEvents
     .filter(event => {
       const eventDate = new Date(event.date);
       return isFutureDate(event.date) && eventDate <= oneYearFromNow;
@@ -143,7 +182,7 @@ export function CatalystsSection({ catalystEvents = [], currentSymbol, onSelectS
   // Also show recent past events (last 60 days) for context
   const sixtyDaysAgo = new Date();
   sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
-  const recentPastEvents = activeEvents
+  const recentPastEvents = filteredEvents
     .filter(event => {
       const eventDate = new Date(event.date);
       return eventDate < new Date() && eventDate >= sixtyDaysAgo;
@@ -210,6 +249,24 @@ export function CatalystsSection({ catalystEvents = [], currentSymbol, onSelectS
         </div>
       )}
 
+      {(() => {
+        const availableFilters = FILTER_CONFIG.filter(filter => activeEvents.some(event => filter.match(event)));
+        return availableFilters.length > 1 ? (
+          <div className="catalyst-filters">
+            {availableFilters.map(filter => (
+              <button
+                key={filter.key}
+                className={`filter-chip ${selectedFilters.has(filter.key) ? 'active' : ''}`}
+                onClick={() => toggleFilter(filter.key)}
+              >
+                <span className="filter-icon">{filter.icon}</span>
+                <span className="filter-label">{filter.label}</span>
+              </button>
+            ))}
+          </div>
+        ) : null;
+      })()}
+
       <div className="calendar-events">
         {futureEvents.length > 0 && (
           <>
@@ -237,6 +294,33 @@ export function CatalystsSection({ catalystEvents = [], currentSymbol, onSelectS
                     {event.description && (
                       <span className="event-description" title={event.description}>{event.description}</span>
                     )}
+                    {(event.eventType === 'earnings' || event.eventType === 'earnings_call') && event.earningsHistory && (() => {
+                      const history = event.earningsHistory;
+                      const getQuarter = (dateStr: string) => {
+                        const month = new Date(dateStr).getMonth();
+                        return `Q${Math.floor(month / 3) + 1}`;
+                      };
+                      return (
+                        <span className="earnings-performance">
+                          {history.slice(0, 3).map((h, i) => (
+                            <span key={i} className={`perf-badge ${typeof h.priceMove === 'number' ? (h.priceMove >= 0 ? 'positive' : 'negative') : ''}`}>
+                              <span className="quarter-label">{getQuarter(h.date)}</span>
+                              {typeof h.beat === 'boolean' && (
+                                <span className={h.beat ? 'beat' : 'miss'}>{h.beat ? '✓' : '✗'}</span>
+                              )}
+                              {typeof h.priceMove === 'number' && (
+                                <>
+                                  <span className="perf-separator">|</span>
+                                  <span className="price-move">
+                                    {h.priceMove >= 0 ? '+' : ''}{h.priceMove.toFixed(1)}%
+                                  </span>
+                                </>
+                              )}
+                            </span>
+                          ))}
+                        </span>
+                      );
+                    })()}
                   </div>
                   <span className={`event-date ${event.isEstimate ? 'estimated' : ''}`}>
                     {formatDate(event.date)}

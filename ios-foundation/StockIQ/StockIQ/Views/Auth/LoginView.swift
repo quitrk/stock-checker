@@ -16,9 +16,11 @@ struct LoginView: View {
 
                 // App Logo & Title
                 VStack(spacing: 16) {
-                    Image(systemName: "chart.line.uptrend.xyaxis")
-                        .font(.system(size: 64))
-                        .foregroundStyle(Color.accentColor)
+                    Image("AppLogo")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 120, height: 120)
+                        .clipShape(RoundedRectangle(cornerRadius: 24))
 
                     Text("StockIQ")
                         .font(.largeTitle)

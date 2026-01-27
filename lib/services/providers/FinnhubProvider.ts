@@ -100,11 +100,6 @@ export class FinnhubProvider {
           title: isReverse ? 'Reverse Stock Split' : 'Stock Split',
           description: `${ratio} ${isReverse ? 'reverse ' : ''}split`,
           source: 'finnhub',
-          metadata: {
-            fromFactor: split.fromFactor,
-            toFactor: split.toFactor,
-            ratio,
-          },
         });
       }
 
@@ -158,12 +153,6 @@ export class FinnhubProvider {
           title: 'IPO',
           description: `${ipo.name} on ${ipo.exchange}${ipo.price ? ` at $${ipo.price}` : ''}`,
           source: 'finnhub',
-          metadata: {
-            exchange: ipo.exchange,
-            status: ipo.status,
-            price: ipo.price,
-            shares: ipo.numberOfShares,
-          },
         });
       }
 

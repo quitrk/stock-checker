@@ -10,7 +10,7 @@ struct APIConfig: Sendable {
     let baseURL: URL
 
     static let production = APIConfig(
-        baseURL: URL(string: "https://your-app.vercel.app")!
+        baseURL: URL(string: "https://stockiq.me")!
     )
 
     static let development = APIConfig(

@@ -1,7 +1,7 @@
 import { yahooFinance, type FundamentalData, type MarketData, type HistoricalBar, type ShortInterestData } from './providers/index.js';
 import { SECService, SECFilingInfo } from './SECService.js';
 import { CatalystService } from './CatalystService.js';
-import { getCached, setCache, cacheKey } from './CacheService.js';
+import { setCache, cacheKey } from './CacheService.js';
 import type {
   ChecklistResult,
   ChecklistCategory,
@@ -10,6 +10,7 @@ import type {
   NewsItem as NewsItemType,
   CatalystEvent,
   AnalystData as AnalystDataType,
+  EarningsPerformance,
 } from '../types/index.js';
 
 interface VolumeAnalysis {
@@ -30,7 +31,7 @@ export class ChecklistService {
   }
 
   async generateChecklist(symbol: string, options: { skipCache?: boolean; ttl?: number } = {}): Promise<ChecklistResult> {
-    const { skipCache = false, ttl } = options;
+    const { ttl } = options;
     const upperSymbol = symbol.toUpperCase();
     // Cache disabled for symbol lookups - always fetch fresh data
 
@@ -52,10 +53,45 @@ export class ChecklistService {
       errors.push(`Stock data unavailable: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
 
-    // Fetch historical data once for multiple uses (days below $1, volume analysis)
+    let secFilingInfo: SECFilingInfo | null = null;
+    try {
+      secFilingInfo = await this.secService.getFilingInfo(upperSymbol);
+    } catch (error) {
+      console.error(`[ChecklistService] SEC filing error:`, error);
+      errors.push(`SEC filings unavailable: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+
+    // Fetch news, catalyst events, analyst data, and earnings history in parallel
+    let news: NewsItemType[] = [];
+    let catalystEvents: CatalystEvent[] = [];
+    let analystData: AnalystDataType | null = null;
+
+    const companyName = marketData?.companyName || upperSymbol;
+    const industry = marketData?.industry || 'Unknown';
+
+    const [newsResult, catalystResult, analystResult, earningsHistoryResult] = await Promise.allSettled([
+      yahooFinance.getNews(upperSymbol, 5),
+      this.catalystService.getCatalystEvents(upperSymbol, companyName, industry),
+      yahooFinance.getAnalystData(upperSymbol),
+      yahooFinance.getEarningsHistory(upperSymbol),
+    ]);
+
+    // Calculate how many days of historical data we need
+    let daysNeeded = 90; // minimum for volume analysis
+    if (earningsHistoryResult.status === 'fulfilled' && earningsHistoryResult.value.length > 0) {
+      const oldestEarningsDate = earningsHistoryResult.value[0]?.date;
+      if (oldestEarningsDate) {
+        const daysSinceOldest = Math.ceil(
+          (Date.now() - new Date(oldestEarningsDate).getTime()) / (1000 * 60 * 60 * 24)
+        );
+        daysNeeded = Math.max(daysNeeded, daysSinceOldest + 30);
+      }
+    }
+
+    // Fetch historical data once with enough days for all uses
     let historicalBars: HistoricalBar[] = [];
     try {
-      historicalBars = await yahooFinance.getHistoricalData(upperSymbol, 90);
+      historicalBars = await yahooFinance.getHistoricalData(upperSymbol, daysNeeded);
     } catch (error) {
       console.error(`[ChecklistService] Historical data error:`, error);
     }
@@ -65,28 +101,6 @@ export class ChecklistService {
     }
 
     const volumeAnalysis = this.analyzeHistoricalVolume(historicalBars);
-
-    let secFilingInfo: SECFilingInfo | null = null;
-    try {
-      secFilingInfo = await this.secService.getFilingInfo(upperSymbol);
-    } catch (error) {
-      console.error(`[ChecklistService] SEC filing error:`, error);
-      errors.push(`SEC filings unavailable: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-
-    // Fetch news, catalyst events, and analyst data in parallel
-    let news: NewsItemType[] = [];
-    let catalystEvents: CatalystEvent[] = [];
-    let analystData: AnalystDataType | null = null;
-
-    const companyName = marketData?.companyName || upperSymbol;
-    const industry = marketData?.industry || 'Unknown';
-
-    const [newsResult, catalystResult, analystResult] = await Promise.allSettled([
-      yahooFinance.getNews(upperSymbol, 5),
-      this.catalystService.getCatalystEvents(upperSymbol, companyName, industry),
-      yahooFinance.getAnalystData(upperSymbol),
-    ]);
 
     if (newsResult.status === 'fulfilled') {
       news = newsResult.value;
@@ -108,6 +122,16 @@ export class ChecklistService {
           analystData.summary = parts.join(' · ');
         }
       }
+    }
+
+    // Build earnings performance data
+    const earningsPerformance = earningsHistoryResult.status === 'fulfilled'
+      ? this.buildEarningsPerformance(earningsHistoryResult.value, historicalBars)
+      : null;
+
+    // Add performance history to earnings catalyst events
+    if (earningsPerformance) {
+      this.attachEarningsToEvents(catalystEvents, earningsPerformance);
     }
 
     const categories: ChecklistCategory[] = [
@@ -142,6 +166,7 @@ export class ChecklistService {
       catalystEvents,
       analystData,
       shortInterestData,
+      earningsPerformance,
     };
 
     // Cache the result if no errors
@@ -788,5 +813,64 @@ export class ChecklistService {
       displayValue: 'Unavailable',
       status: 'unavailable',
     };
+  }
+
+  private calculatePriceMovement(date: string, bars: HistoricalBar[]): number | null {
+    if (bars.length === 0 || !date) return null;
+
+    const idx = bars.findIndex(b => b.date >= date);
+    if (idx < 0 || idx >= bars.length - 1) return null;
+
+    const priceOnDay = bars[idx]?.close;
+    const priceAfter = bars[idx + 1]?.close;
+
+    if (!priceOnDay || !priceAfter) return null;
+    return ((priceAfter - priceOnDay) / priceOnDay) * 100;
+  }
+
+  private buildEarningsPerformance(
+    earningsHistory: { date: string; epsActual: number | null; epsEstimate: number | null; surprisePercent: number | null; priceMovement: number | null }[],
+    bars: HistoricalBar[]
+  ): EarningsPerformance | null {
+    if (earningsHistory.length === 0) return null;
+
+    const history = earningsHistory.map(h => ({
+      ...h,
+      priceMovement: this.calculatePriceMovement(h.date, bars),
+    }));
+
+    const withSurprise = history.filter(h => h.surprisePercent !== null);
+    const beatCount = withSurprise.filter(h => (h.surprisePercent ?? 0) > 0).length;
+    const withPriceMove = history.filter(h => h.priceMovement !== null);
+    const avgPriceMove = withPriceMove.length > 0
+      ? withPriceMove.reduce((sum, h) => sum + (h.priceMovement ?? 0), 0) / withPriceMove.length
+      : null;
+    const lastPriceMove = history[history.length - 1]?.priceMovement ?? null;
+
+    return {
+      history: history.map(h => ({
+        date: h.date,
+        epsActual: h.epsActual,
+        epsEstimate: h.epsEstimate,
+        surprisePercent: h.surprisePercent,
+        priceMovement: h.priceMovement,
+      })),
+      beatCount,
+      totalCount: withSurprise.length,
+      avgPriceMove,
+      lastPriceMove,
+    };
+  }
+
+  private attachEarningsToEvents(events: CatalystEvent[], performance: EarningsPerformance): void {
+    for (const event of events) {
+      if (event.eventType === 'earnings' || event.eventType === 'earnings_call') {
+        event.earningsHistory = performance.history.slice(-3).map(h => ({
+          date: h.date,
+          beat: h.surprisePercent !== null ? h.surprisePercent > 0 : null,
+          priceMove: h.priceMovement,
+        }));
+      }
+    }
   }
 }

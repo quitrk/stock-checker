@@ -58,6 +58,22 @@ export interface ShortInterestData {
   dateShortInterest: string | null;
 }
 
+export interface EarningsHistoryItem {
+  date: string;
+  epsActual: number | null;
+  epsEstimate: number | null;
+  surprisePercent: number | null;
+  priceMovement: number | null;
+}
+
+export interface EarningsPerformance {
+  history: EarningsHistoryItem[];
+  beatCount: number;
+  totalCount: number;
+  avgPriceMove: number | null;
+  lastPriceMove: number | null;
+}
+
 // Catalyst Event Types
 export type CatalystEventType =
   | 'earnings'
@@ -78,6 +94,12 @@ export type CatalystEventType =
 
 export type CatalystSource = 'yahoo' | 'sec' | 'clinicaltrials' | 'finnhub';
 
+export interface EarningsHistoryEntry {
+  date: string;
+  beat: boolean | null;
+  priceMove: number | null;
+}
+
 export interface CatalystEvent {
   id: string;
   symbol: string;
@@ -89,7 +111,20 @@ export interface CatalystEvent {
   description?: string;
   source: CatalystSource;
   sourceUrl?: string;
-  metadata?: Record<string, unknown>;
+  // Earnings
+  earningsHistory?: EarningsHistoryEntry[];
+  epsEstimate?: number;
+  revenueEstimate?: number;
+  // Insider transactions
+  insiderName?: string;
+  insiderRelation?: string;
+  insiderShares?: number;
+  insiderValue?: number;
+  // SEC filings
+  secForm?: string;
+  secItemCode?: string;
+  // Clinical trials
+  trialPhases?: string[];
 }
 
 export interface ChecklistResult {
@@ -110,4 +145,5 @@ export interface ChecklistResult {
   catalystEvents: CatalystEvent[];
   analystData: AnalystData | null;
   shortInterestData: ShortInterestData | null;
+  earningsPerformance: EarningsPerformance | null;
 }

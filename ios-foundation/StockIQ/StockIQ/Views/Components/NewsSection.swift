@@ -63,21 +63,29 @@ private struct NewsItemRow: View {
     }
 
     private var content: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(item.title)
-                .font(.subheadline)
-                .lineLimit(2)
-                .foregroundStyle(.primary)
+        HStack(alignment: .center, spacing: 8) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(item.title)
+                    .font(.subheadline)
+                    .lineLimit(2)
+                    .foregroundStyle(.primary)
 
-            HStack {
-                Text(item.publisher)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                HStack {
+                    Text(item.publisher)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
 
-                Spacer()
+                    Spacer()
 
-                Text(formatDate(item.publishedAt))
-                    .font(.caption)
+                    Text(formatDate(item.publishedAt))
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                }
+            }
+
+            if item.url != nil {
+                Image(systemName: "arrow.up.right")
+                    .font(.footnote)
                     .foregroundStyle(.tertiary)
             }
         }
@@ -85,8 +93,15 @@ private struct NewsItemRow: View {
     }
 
     private func formatDate(_ dateStr: String) -> String {
-        // Try ISO8601 format first
-        if let date = ISO8601DateFormatter().date(from: dateStr) {
+        // Try ISO8601 format with fractional seconds
+        let isoFormatter = ISO8601DateFormatter()
+        isoFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let date = isoFormatter.date(from: dateStr) {
+            return RelativeDateTimeFormatter().localizedString(for: date, relativeTo: Date())
+        }
+        // Try without fractional seconds
+        isoFormatter.formatOptions = [.withInternetDateTime]
+        if let date = isoFormatter.date(from: dateStr) {
             return RelativeDateTimeFormatter().localizedString(for: date, relativeTo: Date())
         }
         // Fallback to basic date format

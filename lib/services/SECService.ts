@@ -398,7 +398,8 @@ export class SECService {
                 description: `8-K Item ${code}`,
                 source: 'sec',
                 sourceUrl,
-                metadata: { form, itemCode: code },
+                secForm: form,
+                secItemCode: code,
               });
             }
           }
@@ -424,7 +425,6 @@ export class SECService {
                       description: `FDA target action date from 8-K filing (${date})`,
                       source: 'sec',
                       sourceUrl: `https://www.sec.gov/Archives/edgar/data/${cik.replace(/^0+/, '')}/${accessionNoDashes}/${primaryDocument}`,
-                      metadata: { filingDate: date, context: pdufa.context.slice(0, 200) },
                     });
                     console.log(`[SECService] Found PDUFA date ${pdufa.date} for ${symbol}`);
                   }
@@ -445,7 +445,7 @@ export class SECService {
             title: 'S-3 Filing (ATM Offering)',
             description: 'Shelf registration for at-the-market offering',
             source: 'sec',
-            metadata: { form },
+            secForm: form,
           });
         }
       }

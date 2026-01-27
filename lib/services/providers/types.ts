@@ -41,6 +41,14 @@ export interface HistoricalBar {
   volume: number;
 }
 
+export interface CachedHistoricalData {
+  symbol: string;
+  bars: HistoricalBar[];
+  earliestDate: string;      // YYYY-MM-DD - earliest bar we have
+  latestDate: string;        // YYYY-MM-DD - latest bar we have
+  fetchedFromDate: string;   // YYYY-MM-DD - earliest date we've requested (may have no bar if weekend/holiday)
+}
+
 export interface NewsItem {
   title: string;
   publisher: string;
@@ -73,6 +81,7 @@ export interface EarningsHistory {
   epsActual: number | null;
   epsEstimate: number | null;
   surprisePercent: number | null;
+  priceMovement: number | null;  // % price change day after earnings
 }
 
 export interface AnalystRating {

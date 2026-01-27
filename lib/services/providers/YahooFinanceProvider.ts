@@ -3,7 +3,8 @@ import type { QuoteSummaryResult } from 'yahoo-finance2/modules/quoteSummary';
 import type { Quote } from 'yahoo-finance2/modules/quote';
 import type { IFinanceProvider } from './IFinanceProvider.js';
 import { ProviderRateLimitError } from './IFinanceProvider.js';
-import type { FundamentalData, MarketData, StockData, HistoricalBar, NewsItem, CalendarEvents, AnalystData, AnalystRating, ShortInterestData, InsiderTransaction, EarningsHistory, CatalystEvent } from './types.js';
+import type { FundamentalData, MarketData, StockData, HistoricalBar, NewsItem, CalendarEvents, AnalystData, AnalystRating, ShortInterestData, InsiderTransaction, EarningsHistory, CatalystEvent, CachedHistoricalData } from './types.js';
+import { getCached, setCache, cacheKey } from '../CacheService.js';
 
 // News publishers to filter out (low quality/spammy)
 const NEWS_PUBLISHER_BLACKLIST = [
@@ -328,38 +329,180 @@ export class YahooFinanceProvider implements IFinanceProvider {
     return results;
   }
 
-  async getHistoricalData(symbol: string, days: number = 60): Promise<HistoricalBar[]> {
-    console.log(`[YahooFinance] Fetching ${days} days of historical data for ${symbol}`);
+  private getYesterday(): string {
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    return yesterday.toISOString().split('T')[0];
+  }
 
-    try {
-      const endDate = new Date();
-      const startDate = new Date();
-      startDate.setDate(startDate.getDate() - days);
+  private getToday(): string {
+    return new Date().toISOString().split('T')[0];
+  }
 
-      const result = await this.retry(() => this.yahooFinance.chart(symbol, {
+  private getMissingRanges(
+    requestedStartStr: string,
+    cached: CachedHistoricalData | null
+  ): {
+    fetchBefore: { start: string; end: string } | null;
+    fetchAfter: { start: string; end: string } | null;
+  } {
+    const yesterday = this.getYesterday();
+
+    if (!cached || cached.bars.length === 0) {
+      return {
+        fetchBefore: null,
+        fetchAfter: { start: requestedStartStr, end: yesterday },
+      };
+    }
+
+    let fetchBefore: { start: string; end: string } | null = null;
+    let fetchAfter: { start: string; end: string } | null = null;
+
+    // Need older data? Use fetchedFromDate to avoid re-fetching non-trading days
+    const cachedFromDate = cached.fetchedFromDate ?? cached.earliestDate;
+    if (requestedStartStr < cachedFromDate) {
+      fetchBefore = { start: requestedStartStr, end: cachedFromDate };
+    }
+
+    // Need newer data?
+    if (cached.latestDate < yesterday) {
+      fetchAfter = { start: cached.latestDate, end: yesterday };
+    }
+
+    return { fetchBefore, fetchAfter };
+  }
+
+  private mergeBars(existing: HistoricalBar[], newBars: HistoricalBar[]): HistoricalBar[] {
+    const byDate = new Map<string, HistoricalBar>();
+
+    for (const bar of existing) {
+      byDate.set(bar.date, bar);
+    }
+
+    for (const bar of newBars) {
+      byDate.set(bar.date, bar);
+    }
+
+    return Array.from(byDate.values()).sort((a, b) => a.date.localeCompare(b.date));
+  }
+
+  private roundBar(bar: HistoricalBar): HistoricalBar {
+    return {
+      date: bar.date,
+      open: Math.round(bar.open * 1000) / 1000,
+      high: Math.round(bar.high * 1000) / 1000,
+      low: Math.round(bar.low * 1000) / 1000,
+      close: Math.round(bar.close * 1000) / 1000,
+      volume: bar.volume,
+    };
+  }
+
+  private async fetchHistoricalRange(
+    symbol: string,
+    startDateStr: string,
+    endDateStr: string
+  ): Promise<HistoricalBar[]> {
+    const startDate = new Date(startDateStr);
+    const endDate = new Date(endDateStr);
+    // Add a day to endDate since Yahoo's period2 is exclusive
+    endDate.setDate(endDate.getDate() + 1);
+
+    const result = await this.retry(() =>
+      this.yahooFinance.chart(symbol, {
         period1: startDate,
         period2: endDate,
         interval: '1d',
-      }));
+      })
+    );
 
-      const bars: HistoricalBar[] = [];
-      const quotes = result.quotes;
+    const today = this.getToday();
+    const bars: HistoricalBar[] = [];
 
-      for (const quote of quotes) {
-        if (quote.date && quote.close !== null) {
-          bars.push({
-            date: quote.date.toISOString().split('T')[0],
-            open: quote.open ?? quote.close,
-            high: quote.high ?? quote.close,
-            low: quote.low ?? quote.close,
-            close: quote.close,
-            volume: quote.volume ?? 0,
-          });
-        }
+    for (const quote of result.quotes) {
+      if (quote.date && quote.close !== null) {
+        const dateStr = quote.date.toISOString().split('T')[0];
+        // Exclude today's incomplete bar
+        if (dateStr === today) continue;
+        bars.push({
+          date: dateStr,
+          open: quote.open ?? quote.close,
+          high: quote.high ?? quote.close,
+          low: quote.low ?? quote.close,
+          close: quote.close,
+          volume: quote.volume ?? 0,
+        });
+      }
+    }
+
+    return bars;
+  }
+
+  async getHistoricalData(symbol: string, days: number = 60): Promise<HistoricalBar[]> {
+    const upperSymbol = symbol.toUpperCase();
+
+    try {
+      // Calculate requested start date
+      const requestedStart = new Date();
+      requestedStart.setDate(requestedStart.getDate() - days);
+      const requestedStartStr = requestedStart.toISOString().split('T')[0];
+
+      // Check cache
+      const cacheKeyStr = cacheKey('historical', upperSymbol);
+      const cached = await getCached<CachedHistoricalData>(cacheKeyStr);
+
+      // Determine what ranges we need to fetch
+      const { fetchBefore, fetchAfter } = this.getMissingRanges(requestedStartStr, cached);
+
+      // If cache fully covers the request, return filtered bars
+      if (!fetchBefore && !fetchAfter && cached) {
+        const filteredBars = cached.bars.filter(b => b.date >= requestedStartStr);
+        console.log(`[YahooFinance] Cache hit for ${upperSymbol}: ${filteredBars.length} bars`);
+        return filteredBars;
       }
 
-      console.log(`[YahooFinance] Got ${bars.length} historical bars for ${symbol}`);
-      return bars;
+      // Fetch missing ranges
+      const allNewBars: HistoricalBar[] = [];
+
+      if (fetchBefore) {
+        console.log(`[YahooFinance] Fetching older data for ${upperSymbol}: ${fetchBefore.start} to ${fetchBefore.end}`);
+        const olderBars = await this.fetchHistoricalRange(upperSymbol, fetchBefore.start, fetchBefore.end);
+        allNewBars.push(...olderBars);
+      }
+
+      if (fetchAfter) {
+        console.log(`[YahooFinance] Fetching newer data for ${upperSymbol}: ${fetchAfter.start} to ${fetchAfter.end}`);
+        const newerBars = await this.fetchHistoricalRange(upperSymbol, fetchAfter.start, fetchAfter.end);
+        allNewBars.push(...newerBars);
+      }
+
+      // Merge with existing cache and round prices for storage efficiency
+      const existingBars = cached?.bars ?? [];
+      const mergedBars = this.mergeBars(existingBars, allNewBars).map(b => this.roundBar(b));
+
+      // Update cache (TTL=0 means no expiration)
+      if (mergedBars.length > 0) {
+        // Track the earliest date we've ever requested (even if no bar exists for weekends/holidays)
+        const existingFetchedFrom = cached?.fetchedFromDate ?? cached?.earliestDate;
+        const fetchedFromDate = existingFetchedFrom && existingFetchedFrom < requestedStartStr
+          ? existingFetchedFrom
+          : requestedStartStr;
+
+        const newCacheData: CachedHistoricalData = {
+          symbol: upperSymbol,
+          bars: mergedBars,
+          earliestDate: mergedBars[0].date,
+          latestDate: mergedBars[mergedBars.length - 1].date,
+          fetchedFromDate,
+        };
+        await setCache(cacheKeyStr, newCacheData, 0);
+        console.log(`[YahooFinance] Updated cache for ${upperSymbol}: ${mergedBars.length} total bars (${allNewBars.length} new)`);
+      }
+
+      // Return only the requested range
+      const result = mergedBars.filter(b => b.date >= requestedStartStr);
+      console.log(`[YahooFinance] Returning ${result.length} bars for ${upperSymbol}`);
+      return result;
+
     } catch (error) {
       console.error(`[YahooFinance] Error fetching historical data for ${symbol}:`, error);
       return [];
@@ -547,7 +690,8 @@ export class YahooFinanceProvider implements IFinanceProvider {
         epsActual: h.epsActual ?? null,
         epsEstimate: h.epsEstimate ?? null,
         surprisePercent: h.surprisePercent ?? null,
-      }));
+        priceMovement: null as number | null,
+      })).filter((e: EarningsHistory) => e.date);
     } catch (error) {
       console.error(`[YahooFinance] Error getting earnings history for ${symbol}:`, error);
       return [];
@@ -582,10 +726,8 @@ export class YahooFinanceProvider implements IFinanceProvider {
             ? `EPS estimate: $${earnings.earningsAverage.toFixed(2)}`
             : undefined,
           source: 'yahoo',
-          metadata: {
-            epsEstimate: earnings.earningsAverage,
-            revenueEstimate: earnings.revenueAverage,
-          },
+          epsEstimate: earnings.earningsAverage ?? undefined,
+          revenueEstimate: earnings.revenueAverage ?? undefined,
         });
       }
 
@@ -634,12 +776,10 @@ export class YahooFinanceProvider implements IFinanceProvider {
             title: `Insider ${action} shares`,
             description: `${t.filerName} (${t.filerRelation}) ${action} ${Math.abs(t.shares).toLocaleString()} shares`,
             source: 'yahoo',
-            metadata: {
-              name: t.filerName,
-              relation: t.filerRelation,
-              shares: t.shares,
-              value: t.value,
-            },
+            insiderName: t.filerName,
+            insiderRelation: t.filerRelation,
+            insiderShares: t.shares,
+            insiderValue: t.value ?? undefined,
           });
         }
       }

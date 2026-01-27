@@ -175,11 +175,7 @@ export class ClinicalTrialsProvider {
       description: title,
       source: 'clinicaltrials',
       sourceUrl: `https://clinicaltrials.gov/study/${nctId}`,
-      metadata: {
-        nctId,
-        status,
-        phases,
-      },
+      trialPhases: phases,
     };
   }
 }

@@ -9,7 +9,11 @@ struct StockIQApp: App {
     @State private var authManager: AuthManager
 
     init() {
+        #if DEBUG
         let apiClient = APIClient(config: .development)
+        #else
+        let apiClient = APIClient(config: .production)
+        #endif
         _api = State(initialValue: apiClient)
         _authManager = State(initialValue: AuthManager(apiClient: apiClient))
     }
