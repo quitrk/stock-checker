@@ -89,15 +89,19 @@ struct SearchView: View {
         let symbol = searchText.trimmingCharacters(in: .whitespaces).uppercased()
         guard !symbol.isEmpty else { return }
 
+        Haptics.light()
         isLoading = true
         errorMessage = nil
         result = nil
 
         do {
             result = try await api.getChecklist(symbol: symbol)
+            Haptics.success()
         } catch let error as APIError {
+            Haptics.error()
             errorMessage = error.localizedDescription
         } catch {
+            Haptics.error()
             errorMessage = "An unexpected error occurred"
         }
 

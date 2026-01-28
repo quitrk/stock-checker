@@ -185,11 +185,13 @@ struct WatchlistsView: View {
     }
 
     private func deleteWatchlist(_ watchlist: WatchlistSummary) async {
+        Haptics.medium()
         do {
             try await api.deleteWatchlist(id: watchlist.id)
+            Haptics.success()
             userWatchlists.removeAll { $0.id == watchlist.id }
         } catch {
-            // Could show error toast here
+            Haptics.error()
         }
     }
 
@@ -198,13 +200,15 @@ struct WatchlistsView: View {
         guard !name.isEmpty else { return }
 
         isCreating = true
+        Haptics.light()
 
         do {
             _ = try await api.createWatchlist(name: name)
+            Haptics.success()
             userWatchlists = try await api.getWatchlists()
             showCreateSheet = false
         } catch {
-            // Could show error toast here
+            Haptics.error()
         }
 
         isCreating = false

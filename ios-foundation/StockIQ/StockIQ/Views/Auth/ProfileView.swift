@@ -141,7 +141,9 @@ struct ProfileView: View {
             ) {
                 Button("Sign Out", role: .destructive) {
                     Task {
+                        Haptics.medium()
                         await authManager.logout()
+                        Haptics.success()
                         dismiss()
                     }
                 }
@@ -178,11 +180,14 @@ struct ProfileView: View {
     private func deleteAccount() async {
         isDeleting = true
         deleteError = nil
+        Haptics.warning()
 
         do {
             try await authManager.deleteAccount()
+            Haptics.success()
             dismiss()
         } catch {
+            Haptics.error()
             deleteError = "Failed to delete account. Please try again."
         }
 

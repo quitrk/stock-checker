@@ -52,6 +52,7 @@ struct StockHeader: View {
             Spacer()
 
             Button {
+                Haptics.light()
                 if isDefault {
                     defaultStock = ""
                 } else {
@@ -59,6 +60,9 @@ struct StockHeader: View {
                 }
             } label: {
                 Image(systemName: isDefault ? "pin.fill" : "pin")
+                    .font(.title2)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
             }
             .accessibilityLabel(isDefault ? "Remove as default" : "Set as default")
 

@@ -235,23 +235,27 @@ struct WatchlistDetailView: View {
     }
 
     private func removeSymbol(_ symbol: String) async {
+        Haptics.medium()
         do {
             _ = try await api.removeSymbol(from: watchlistId, symbol: symbol)
+            Haptics.success()
             await loadWatchlist()
         } catch {
-            // Could show error toast here
+            Haptics.error()
         }
     }
 
     private func addSymbol(_ symbol: String) async {
         isAddingSymbol = true
+        Haptics.light()
         do {
             _ = try await api.addSymbol(to: watchlistId, symbol: symbol)
+            Haptics.success()
             filterText = ""
             validatedSymbol = nil
             await loadWatchlist()
         } catch {
-            // Could show error toast here
+            Haptics.error()
         }
         isAddingSymbol = false
     }

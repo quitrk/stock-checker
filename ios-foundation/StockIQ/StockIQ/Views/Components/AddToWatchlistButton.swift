@@ -20,9 +20,13 @@ struct AddToWatchlistButton: View {
 
     var body: some View {
         Button {
+            Haptics.light()
             showSheet = true
         } label: {
             Image(systemName: "plus.circle")
+                .font(.title2)
+                .frame(width: 44, height: 44)
+                .contentShape(Rectangle())
         }
         .accessibilityLabel("Add \(symbol) to watchlist")
         .sheet(isPresented: $showSheet) {
@@ -147,6 +151,7 @@ struct AddToWatchlistButton: View {
 
     private func toggleSymbol(watchlistId: String, isInWatchlist: Bool) async {
         loadingWatchlistId = watchlistId
+        Haptics.light()
 
         do {
             if isInWatchlist {
@@ -154,10 +159,11 @@ struct AddToWatchlistButton: View {
             } else {
                 _ = try await api.addSymbol(to: watchlistId, symbol: symbol)
             }
+            Haptics.success()
             // Refresh watchlists to get updated items
             watchlists = try await api.getWatchlists()
         } catch {
-            // Could show error toast here
+            Haptics.error()
         }
 
         loadingWatchlistId = nil
@@ -169,14 +175,17 @@ struct AddToWatchlistButton: View {
 
         isCreating = true
         errorMessage = nil
+        Haptics.light()
 
         do {
             let created = try await api.createWatchlist(name: name)
             _ = try await api.addSymbol(to: created.id, symbol: symbol)
+            Haptics.success()
             watchlists = try await api.getWatchlists()
             newWatchlistName = ""
             showCreateForm = false
         } catch {
+            Haptics.error()
             errorMessage = error.localizedDescription
         }
 

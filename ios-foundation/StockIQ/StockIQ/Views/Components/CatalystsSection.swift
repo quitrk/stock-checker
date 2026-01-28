@@ -192,6 +192,9 @@ struct CatalystsSection: View {
                         Text("Past").tag(CatalystSegment.past)
                     }
                     .pickerStyle(.segmented)
+                    .onChange(of: selectedSegment) { _, _ in
+                        Haptics.selection()
+                    }
                 }
 
                 // Filter button (only if multiple filter types available)
