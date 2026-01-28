@@ -24,9 +24,10 @@ struct WatchlistsView: View {
                     } description: {
                         Text(error)
                     } actions: {
-                        Button("Retry") {
+                        Button("Try Again") {
                             Task { await loadWatchlists() }
                         }
+                        .buttonStyle(.bordered)
                     }
                 } else {
                     List {

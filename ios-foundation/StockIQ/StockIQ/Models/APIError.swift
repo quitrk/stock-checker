@@ -24,6 +24,20 @@ enum APIError: LocalizedError {
         case .decodingError:
             return "Failed to parse response"
         case .networkError(let error):
+            if let urlError = error as? URLError {
+                switch urlError.code {
+                case .notConnectedToInternet:
+                    return "No internet connection. Please check your network settings."
+                case .timedOut:
+                    return "Request timed out. Please try again."
+                case .networkConnectionLost:
+                    return "Connection lost. Please try again."
+                case .cannotFindHost, .cannotConnectToHost:
+                    return "Cannot reach server. Please try again later."
+                default:
+                    return error.localizedDescription
+                }
+            }
             return error.localizedDescription
         case .unauthorized:
             return "Please sign in to continue"

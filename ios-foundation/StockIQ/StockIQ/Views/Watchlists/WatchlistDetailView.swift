@@ -67,9 +67,10 @@ struct WatchlistDetailView: View {
                 } description: {
                     Text(error)
                 } actions: {
-                    Button("Retry") {
+                    Button("Try Again") {
                         Task { await loadWatchlist() }
                     }
+                    .buttonStyle(.bordered)
                 }
             } else if watchlist != nil {
                 List {
@@ -340,9 +341,13 @@ struct StockRow: View {
                         .font(.caption)
                 }
                 .foregroundStyle(stock.isPriceUp ? .green : .red)
+                .accessibilityHidden(true)
             }
         }
         .padding(.vertical, 4)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(stock.symbol), \(stock.companyName)")
+        .accessibilityValue("\(String(format: "$%.2f", stock.price)), \(stock.isPriceUp ? "up" : "down") \(String(format: "%.2f%%", abs(stock.priceChangePercent)))")
     }
 }
 
@@ -367,9 +372,10 @@ struct StockDetailView: View {
                 } description: {
                     Text(error)
                 } actions: {
-                    Button("Retry") {
+                    Button("Try Again") {
                         Task { await loadChecklist() }
                     }
+                    .buttonStyle(.bordered)
                 }
             } else if let result = result {
                 ScrollView {

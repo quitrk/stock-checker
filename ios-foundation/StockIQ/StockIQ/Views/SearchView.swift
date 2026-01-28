@@ -30,6 +30,11 @@ struct SearchView: View {
                     Label("Error", systemImage: "exclamationmark.triangle")
                 } description: {
                     Text(error)
+                } actions: {
+                    Button("Try Again") {
+                        Task { await search() }
+                    }
+                    .buttonStyle(.bordered)
                 }
                 Spacer()
             } else if let result {
