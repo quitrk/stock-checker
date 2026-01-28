@@ -254,10 +254,18 @@ export class ChecklistService {
       },
     });
 
-    // Max volume spike info
-    if (volumeAnalysis.maxVolumeRatio >= 5) {
+    // Max volume spike info - compare historical max with today's live volume
+    const todayVolumeRatio = marketData && volumeAnalysis.medianVolume > 0
+      ? marketData.volume / volumeAnalysis.medianVolume
+      : 0;
+    const isTodayPeak = todayVolumeRatio > volumeAnalysis.maxVolumeRatio;
+    const peakRatio = isTodayPeak ? todayVolumeRatio : volumeAnalysis.maxVolumeRatio;
+
+    if (peakRatio >= 5) {
       let spikeDescription = 'Largest single-day volume spike.';
-      if (volumeAnalysis.maxVolumeDate) {
+      if (isTodayPeak) {
+        spikeDescription = 'Peak volume is today.';
+      } else if (volumeAnalysis.maxVolumeDate) {
         const daysAgo = Math.floor((Date.now() - new Date(volumeAnalysis.maxVolumeDate).getTime()) / (1000 * 60 * 60 * 24));
         spikeDescription = daysAgo === 0 ? 'Peak volume was today.' : `Peak volume was ${daysAgo} day${daysAgo === 1 ? '' : 's'} ago.`;
       }
@@ -265,9 +273,9 @@ export class ChecklistService {
         id: 'max_volume_spike',
         label: 'Biggest Spike (60d)',
         description: spikeDescription,
-        value: volumeAnalysis.maxVolumeRatio,
-        displayValue: `${volumeAnalysis.maxVolumeRatio.toFixed(1)}x`,
-        status: this.getVolumeRatioStatus(volumeAnalysis.maxVolumeRatio),
+        value: peakRatio,
+        displayValue: `${peakRatio.toFixed(1)}x`,
+        status: this.getVolumeRatioStatus(peakRatio),
         thresholds: {
           safe: '< 5x',
           warning: '5-20x',
