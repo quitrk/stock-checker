@@ -64,3 +64,6 @@ Pods/
 # Swift Package Manager
 .build/
 .swiftpm/
+
+# iOS Secrets (contains API tokens - never commit)
+**/Secrets.swift

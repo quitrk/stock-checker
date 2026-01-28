@@ -8,6 +8,7 @@ struct LoginView: View {
     @Environment(AuthManager.self) private var authManager
     @Environment(APIClient.self) private var api
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         GeometryReader { geometry in
@@ -37,6 +38,19 @@ struct LoginView: View {
 
                 // Auth Buttons
                 VStack(spacing: 12) {
+                    // Apple Sign In
+                    SignInWithAppleButton(.signIn) { request in
+                        request.requestedScopes = [.email, .fullName]
+                    } onCompletion: { result in
+                        Task {
+                            await authManager.handleAppleSignInResult(result)
+                        }
+                    }
+                    .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
+                    .frame(height: 50)
+                    .cornerRadius(8)
+                    .disabled(authManager.isAuthenticating)
+
                     // Google Sign In
                     Button {
                         if let anchor = getAnchor() {
@@ -48,7 +62,7 @@ struct LoginView: View {
                         HStack(spacing: 12) {
                             Image(systemName: "g.circle.fill")
                                 .font(.title3)
-                            Text("Continue with Google")
+                            Text("Sign in with Google")
                                 .fontWeight(.medium)
                         }
                         .frame(maxWidth: .infinity)

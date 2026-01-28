@@ -19,11 +19,12 @@ export function setSessionCookie(c: Context, sessionId: string): void {
 }
 
 export function getSessionId(c: Context): string | undefined {
-  return getCookie(c, SESSION_COOKIE);
+  // Check X-Session-Token header first (for iOS), then fall back to cookie (for web)
+  return c.req.header('X-Session-Token') || getCookie(c, SESSION_COOKIE);
 }
 
 export async function clearSession(c: Context): Promise<void> {
-  const sessionId = getCookie(c, SESSION_COOKIE);
+  const sessionId = getSessionId(c);
   if (sessionId) {
     await authService.deleteSession(sessionId);
   }
@@ -31,7 +32,7 @@ export async function clearSession(c: Context): Promise<void> {
 }
 
 export async function getAuthUser(c: Context): Promise<User | null> {
-  const sessionId = getCookie(c, SESSION_COOKIE);
+  const sessionId = getSessionId(c);
   if (!sessionId) return null;
   return authService.getUserFromSession(sessionId);
 }

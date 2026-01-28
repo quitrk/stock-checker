@@ -44,3 +44,15 @@ struct AuthResponse: Codable {
     let user: User?
     let isAuthenticated: Bool
 }
+
+// MARK: - Apple Sign-In
+
+struct AppleAuthRequest: Encodable {
+    let identityToken: String
+    let name: String?
+    let email: String?
+}
+
+struct AppleAuthResponse: Decodable {
+    let sessionId: String
+}

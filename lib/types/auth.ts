@@ -3,7 +3,7 @@ export interface User {
   email: string;
   name: string;
   avatar: string | null;
-  provider: 'google' | 'github';
+  provider: 'google' | 'github' | 'apple';
   providerId: string;
   createdAt: string;
 }
@@ -16,10 +16,16 @@ export interface Session {
 }
 
 export interface OAuthState {
-  provider: 'google' | 'github';
+  provider: 'google' | 'github' | 'apple';
   returnTo?: string;
   timestamp: number;
   platform?: 'web' | 'ios';
+}
+
+export interface AppleAuthRequest {
+  identityToken: string;
+  name?: string;
+  email?: string;
 }
 
 export interface AuthResponse {

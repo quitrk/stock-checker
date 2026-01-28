@@ -6,16 +6,31 @@ import Observation
 
 // MARK: - Configuration
 
+enum ServiceEnv: String, CaseIterable {
+    case development  // Local server
+    case preview      // Vercel preview
+    case production   // Live
+
+    var baseURL: URL {
+        switch self {
+        case .development:
+            return URL(string: "http://localhost:3002")!
+        case .preview:
+            return URL(string: "https://stock-checker-dun.vercel.app")!
+        case .production:
+            return URL(string: "https://stockiq.me")!
+        }
+    }
+
+    // ⬇️ Change this to switch environments
+    static let current: ServiceEnv = .preview
+}
+
 struct APIConfig: Sendable {
     let baseURL: URL
 
-    static let production = APIConfig(
-        baseURL: URL(string: "https://stockiq.me")!
-    )
-
-    static let development = APIConfig(
-        baseURL: URL(string: "http://localhost:3002")!
-    )
+    static let production = APIConfig(baseURL: ServiceEnv.production.baseURL)
+    static let development = APIConfig(baseURL: ServiceEnv.current.baseURL)
 }
 
 // MARK: - API Client
@@ -62,6 +77,18 @@ final class APIClient {
     func setSession(_ token: String) {
         sessionToken = token
         isAuthenticated = true
+    }
+
+    func authenticateWithApple(
+        identityToken: String,
+        name: String?,
+        email: String?
+    ) async throws -> AppleAuthResponse {
+        try await post("/api/auth/apple", body: AppleAuthRequest(
+            identityToken: identityToken,
+            name: name,
+            email: email
+        ))
     }
 
     func logout() async {
@@ -190,8 +217,15 @@ final class APIClient {
         request.setValue("application/json", forHTTPHeaderField: "Accept")
 
         if let token = sessionToken {
-            request.setValue("stock_session=\(token)", forHTTPHeaderField: "Cookie")
+            request.setValue(token, forHTTPHeaderField: "X-Session-Token")
         }
+
+        // Vercel preview protection bypass - only in debug builds for testing
+        #if DEBUG
+        if ServiceEnv.current == .preview {
+            request.setValue(Secrets.vercelBypassToken, forHTTPHeaderField: "x-vercel-protection-bypass")
+        }
+        #endif
 
         if let body = body {
             request.httpBody = try encoder.encode(body)

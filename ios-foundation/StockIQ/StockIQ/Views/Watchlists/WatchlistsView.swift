@@ -12,6 +12,9 @@ struct WatchlistsView: View {
     @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var showAuthSheet = false
+    @State private var showCreateSheet = false
+    @State private var newWatchlistName = ""
+    @State private var isCreating = false
 
     var body: some View {
         NavigationStack {
@@ -68,6 +71,18 @@ struct WatchlistsView: View {
             .navigationTitle("Watchlists")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                if api.isAuthenticated {
+                    ToolbarItem(placement: .navigationBarLeading) {
+                        Button {
+                            newWatchlistName = ""
+                            showCreateSheet = true
+                        } label: {
+                            Image(systemName: "plus")
+                        }
+                        .accessibilityLabel("Create watchlist")
+                        .accessibilityHint("Create a new watchlist")
+                    }
+                }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button {
                         showAuthSheet = true
@@ -101,6 +116,30 @@ struct WatchlistsView: View {
                 } else {
                     LoginView()
                 }
+            }
+            .sheet(isPresented: $showCreateSheet) {
+                NavigationStack {
+                    Form {
+                        TextField("Watchlist name", text: $newWatchlistName)
+                            .textInputAutocapitalization(.words)
+                    }
+                    .navigationTitle("New Watchlist")
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Cancel") {
+                                showCreateSheet = false
+                            }
+                        }
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button("Create") {
+                                Task { await createWatchlist() }
+                            }
+                            .disabled(newWatchlistName.trimmingCharacters(in: .whitespaces).isEmpty || isCreating)
+                        }
+                    }
+                }
+                .presentationDetents([.medium])
             }
         }
         .task {
@@ -143,6 +182,23 @@ struct WatchlistsView: View {
         } catch {
             // Could show error toast here
         }
+    }
+
+    private func createWatchlist() async {
+        let name = newWatchlistName.trimmingCharacters(in: .whitespaces)
+        guard !name.isEmpty else { return }
+
+        isCreating = true
+
+        do {
+            _ = try await api.createWatchlist(name: name)
+            userWatchlists = try await api.getWatchlists()
+            showCreateSheet = false
+        } catch {
+            // Could show error toast here
+        }
+
+        isCreating = false
     }
 }
 

@@ -1,7 +1,7 @@
 import { yahooFinance, type FundamentalData, type MarketData, type HistoricalBar, type ShortInterestData } from './providers/index.js';
 import { SECService, SECFilingInfo } from './SECService.js';
 import { CatalystService } from './CatalystService.js';
-import { FDAProvider, type FDADecision } from './providers/FDAProvider.js';
+import { FDAProvider } from './providers/FDAProvider.js';
 import { setCache, cacheKey } from './CacheService.js';
 import type {
   ChecklistResult,

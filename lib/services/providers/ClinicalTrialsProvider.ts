@@ -107,7 +107,7 @@ export class ClinicalTrialsProvider {
       // Process active trials (for upcoming)
       const upcoming: CatalystEvent[] = [];
       for (const study of activeData.studies || []) {
-        const event = this.parseStudy(study, symbol, today);
+        const event = this.parseStudy(study, symbol);
         if (event && event.date >= today) {
           upcoming.push(event);
         }
@@ -116,7 +116,7 @@ export class ClinicalTrialsProvider {
       // Process completed trials (for recent past)
       const past: CatalystEvent[] = [];
       for (const study of completedData.studies || []) {
-        const event = this.parseStudy(study, symbol, today);
+        const event = this.parseStudy(study, symbol);
         if (event && event.date < today && event.date >= ninetyDaysAgoStr) {
           past.push(event);
         }
@@ -138,13 +138,12 @@ export class ClinicalTrialsProvider {
     }
   }
 
-  private parseStudy(study: ClinicalTrialStudy, symbol: string, today: string): CatalystEvent | null {
+  private parseStudy(study: ClinicalTrialStudy, symbol: string): CatalystEvent | null {
     const protocol = study.protocolSection;
     if (!protocol) return null;
 
     const nctId = protocol.identificationModule?.nctId;
     const title = protocol.identificationModule?.briefTitle || protocol.identificationModule?.officialTitle;
-    const status = protocol.statusModule?.overallStatus;
     const phases = protocol.designModule?.phases || [];
     const primaryCompletion = protocol.statusModule?.primaryCompletionDateStruct;
     const studyCompletion = protocol.statusModule?.completionDateStruct;

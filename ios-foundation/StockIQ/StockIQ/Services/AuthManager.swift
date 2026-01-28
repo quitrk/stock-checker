@@ -2,6 +2,7 @@
 // StockIQ
 
 import Foundation
+import UIKit
 import AuthenticationServices
 import Observation
 
@@ -23,6 +24,10 @@ final class AuthManager: NSObject {
 
     private var webAuthSession: ASWebAuthenticationSession?
     private weak var presentationAnchor: ASPresentationAnchor?
+
+    // MARK: - Apple Sign-In
+
+    private var appleSignInContinuation: CheckedContinuation<Void, Never>?
 
     // MARK: - Init
 
@@ -54,6 +59,85 @@ final class AuthManager: NSObject {
 
     func signInWithGoogle(from anchor: ASPresentationAnchor) async {
         await performOAuthFlow(provider: "google", anchor: anchor)
+    }
+
+    // MARK: - Apple Sign-In
+
+    /// Handle the result from SwiftUI's SignInWithAppleButton
+    func handleAppleSignInResult(_ result: Result<ASAuthorization, Error>) async {
+        isAuthenticating = true
+        authError = nil
+
+        switch result {
+        case .success(let authorization):
+            guard let credential = authorization.credential as? ASAuthorizationAppleIDCredential else {
+                authError = "Invalid credential type"
+                isAuthenticating = false
+                return
+            }
+            await handleAppleCredential(credential)
+
+        case .failure(let error):
+            isAuthenticating = false
+            // Don't show error for user cancellation
+            if let authError = error as? ASAuthorizationError,
+               authError.code == .canceled {
+                return
+            }
+            authError = error.localizedDescription
+        }
+    }
+
+    /// Programmatic Apple Sign-In (for use outside SwiftUI button)
+    func signInWithApple() async {
+        isAuthenticating = true
+        authError = nil
+
+        let request = ASAuthorizationAppleIDProvider().createRequest()
+        request.requestedScopes = [.email, .fullName]
+
+        let controller = ASAuthorizationController(authorizationRequests: [request])
+        controller.delegate = self
+        controller.presentationContextProvider = self
+
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            appleSignInContinuation = continuation
+            controller.performRequests()
+        }
+    }
+
+    private func handleAppleCredential(_ credential: ASAuthorizationAppleIDCredential) async {
+        defer {
+            isAuthenticating = false
+            appleSignInContinuation?.resume()
+            appleSignInContinuation = nil
+        }
+
+        guard let identityToken = credential.identityToken,
+              let tokenString = String(data: identityToken, encoding: .utf8) else {
+            authError = "Failed to get identity token"
+            return
+        }
+
+        // Build user info (only available on first sign-in)
+        let name = [credential.fullName?.givenName, credential.fullName?.familyName]
+            .compactMap { $0 }
+            .joined(separator: " ")
+
+        do {
+            let response = try await apiClient.authenticateWithApple(
+                identityToken: tokenString,
+                name: name.isEmpty ? nil : name,
+                email: credential.email
+            )
+
+            try keychain.saveSession(response.sessionId)
+            apiClient.setSession(response.sessionId)
+            _ = try await apiClient.checkAuth()
+        } catch {
+            authError = "Authentication failed"
+            keychain.deleteSession()
+        }
     }
 
     private func performOAuthFlow(provider: String, anchor: ASPresentationAnchor) async {
@@ -153,6 +237,64 @@ extension AuthManager: ASWebAuthenticationPresentationContextProviding {
             return UIWindow(windowScene: windowScene)
         }
         // Should not happen - return empty window with first available scene
+        let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene
+        return UIWindow(windowScene: scene!)
+    }
+}
+
+// MARK: - ASAuthorizationControllerDelegate
+
+extension AuthManager: ASAuthorizationControllerDelegate {
+    func authorizationController(
+        controller: ASAuthorizationController,
+        didCompleteWithAuthorization authorization: ASAuthorization
+    ) {
+        guard let credential = authorization.credential as? ASAuthorizationAppleIDCredential else {
+            authError = "Invalid credential type"
+            isAuthenticating = false
+            appleSignInContinuation?.resume()
+            appleSignInContinuation = nil
+            return
+        }
+
+        Task {
+            await handleAppleCredential(credential)
+        }
+    }
+
+    func authorizationController(
+        controller: ASAuthorizationController,
+        didCompleteWithError error: Error
+    ) {
+        // Don't show error for user cancellation
+        if let authError = error as? ASAuthorizationError,
+           authError.code == .canceled {
+            isAuthenticating = false
+            appleSignInContinuation?.resume()
+            appleSignInContinuation = nil
+            return
+        }
+
+        self.authError = error.localizedDescription
+        isAuthenticating = false
+        appleSignInContinuation?.resume()
+        appleSignInContinuation = nil
+    }
+}
+
+// MARK: - ASAuthorizationControllerPresentationContextProviding
+
+extension AuthManager: ASAuthorizationControllerPresentationContextProviding {
+    func presentationAnchor(for controller: ASAuthorizationController) -> ASPresentationAnchor {
+        if let anchor = presentationAnchor {
+            return anchor
+        }
+        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
+            if let window = windowScene.windows.first {
+                return window
+            }
+            return UIWindow(windowScene: windowScene)
+        }
         let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene
         return UIWindow(windowScene: scene!)
     }

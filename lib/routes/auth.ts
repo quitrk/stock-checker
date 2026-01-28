@@ -1,6 +1,8 @@
 import { Hono } from 'hono';
+import * as jose from 'jose';
 import { AuthService } from '../services/AuthService.js';
 import { setSessionCookie, clearSession, getAuthUser } from '../middleware/auth.js';
+import type { AppleAuthRequest } from '../types/auth.js';
 
 const auth = new Hono();
 const authService = new AuthService();
@@ -193,6 +195,68 @@ auth.get('/github/callback', async (c) => {
   } catch (err) {
     console.error('[Auth] GitHub callback error:', err);
     return c.redirect('/?auth_error=server_error');
+  }
+});
+
+// Apple Sign-In (iOS native)
+auth.post('/apple', async (c) => {
+  const { identityToken, name, email } = await c.req.json<AppleAuthRequest>();
+
+  if (!identityToken) {
+    return c.json({ error: 'Missing identity token' }, 400);
+  }
+
+  try {
+    // Fetch Apple's public keys
+    const JWKS = jose.createRemoteJWKSet(
+      new URL('https://appleid.apple.com/auth/keys')
+    );
+
+    // Verify the JWT
+    const { payload } = await jose.jwtVerify(identityToken, JWKS, {
+      issuer: 'https://appleid.apple.com',
+      audience: process.env.APPLE_BUNDLE_ID || 'stockiq.me.StockIQ',
+    });
+
+    // payload.sub is Apple's unique user ID (stable across sign-ins)
+    const appleUserId = payload.sub;
+    if (!appleUserId) {
+      return c.json({ error: 'Invalid token: missing subject' }, 401);
+    }
+
+    // Email from token or from request (first sign-in only provides email in request)
+    const userEmail = (payload.email as string) || email;
+    if (!userEmail) {
+      return c.json({ error: 'Email is required' }, 400);
+    }
+
+    // Create or update user
+    const user = await authService.upsertUser({
+      email: userEmail,
+      name: name || userEmail.split('@')[0] || 'Apple User',
+      avatar: null, // Apple doesn't provide avatar
+      provider: 'apple',
+      providerId: appleUserId,
+    });
+
+    // Create session
+    const session = await authService.createSession(user.id);
+
+    return c.json({ sessionId: session.id });
+  } catch (err) {
+    console.error('[Auth] Apple sign-in error:', err);
+
+    if (err instanceof jose.errors.JWTExpired) {
+      return c.json({ error: 'Token expired' }, 401);
+    }
+    if (err instanceof jose.errors.JWTClaimValidationFailed) {
+      return c.json({ error: 'Invalid token claims' }, 401);
+    }
+    if (err instanceof jose.errors.JWSSignatureVerificationFailed) {
+      return c.json({ error: 'Invalid token signature' }, 401);
+    }
+
+    return c.json({ error: 'Authentication failed' }, 500);
   }
 });
 
