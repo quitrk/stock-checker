@@ -16,6 +16,7 @@ struct AddToWatchlistButton: View {
     @State private var showCreateForm = false
     @State private var newWatchlistName = ""
     @State private var isCreating = false
+    @FocusState private var isNameFieldFocused: Bool
 
     var body: some View {
         Button {
@@ -41,6 +42,13 @@ struct AddToWatchlistButton: View {
             .presentationDetents([.medium, .large])
             .task {
                 await loadWatchlists()
+            }
+            .onChange(of: showCreateForm) { _, isShowing in
+                if isShowing {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        isNameFieldFocused = true
+                    }
+                }
             }
         }
     }
@@ -88,6 +96,7 @@ struct AddToWatchlistButton: View {
                                 TextField("Watchlist name", text: $newWatchlistName)
                                     .textFieldStyle(.plain)
                                     .submitLabel(.done)
+                                    .focused($isNameFieldFocused)
                                     .onSubmit {
                                         Task { await createAndAdd() }
                                     }

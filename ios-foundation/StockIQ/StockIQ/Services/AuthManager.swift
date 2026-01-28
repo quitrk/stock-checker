@@ -185,7 +185,7 @@ final class AuthManager: NSObject {
             return
         }
 
-        // Parse: stockiq://auth/callback?session=xxx&status=success
+        // Parse: stockiqme://auth/callback?session=xxx&status=success
         guard let components = URLComponents(url: callbackURL, resolvingAgainstBaseURL: false),
               let status = components.queryItems?.first(where: { $0.name == "status" })?.value else {
             authError = "Invalid callback URL"

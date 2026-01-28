@@ -6,10 +6,13 @@ import SwiftUI
 struct SearchView: View {
     @Environment(APIClient.self) private var api
 
+    @AppStorage("defaultStock") private var defaultStock: String = ""
+
     @State private var searchText = ""
     @State private var isLoading = false
     @State private var result: ChecklistResult?
     @State private var errorMessage: String?
+    @State private var hasLoadedDefault = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -71,6 +74,15 @@ struct SearchView: View {
             }
         }
         .background(Color.groupedBackground)
+        .task {
+            guard !hasLoadedDefault, !defaultStock.isEmpty else { return }
+            hasLoadedDefault = true
+            searchText = defaultStock
+            await search()
+            if result != nil {
+                searchText = ""
+            }
+        }
     }
 
     private func search() async {

@@ -15,6 +15,7 @@ struct WatchlistsView: View {
     @State private var showCreateSheet = false
     @State private var newWatchlistName = ""
     @State private var isCreating = false
+    @FocusState private var isNameFieldFocused: Bool
 
     var body: some View {
         NavigationStack {
@@ -78,6 +79,8 @@ struct WatchlistsView: View {
                             showCreateSheet = true
                         } label: {
                             Image(systemName: "plus")
+                                .frame(width: 44, height: 44)
+                                .contentShape(Rectangle())
                         }
                         .accessibilityLabel("Create watchlist")
                         .accessibilityHint("Create a new watchlist")
@@ -122,6 +125,7 @@ struct WatchlistsView: View {
                     Form {
                         TextField("Watchlist name", text: $newWatchlistName)
                             .textInputAutocapitalization(.words)
+                            .focused($isNameFieldFocused)
                     }
                     .navigationTitle("New Watchlist")
                     .navigationBarTitleDisplayMode(.inline)
@@ -147,6 +151,11 @@ struct WatchlistsView: View {
         }
         .onChange(of: api.isAuthenticated) { _, _ in
             Task { await loadWatchlists() }
+        }
+        .onChange(of: showCreateSheet) { _, isShowing in
+            if isShowing {
+                isNameFieldFocused = true
+            }
         }
     }
 

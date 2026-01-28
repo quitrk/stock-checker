@@ -7,6 +7,12 @@ struct StockHeader: View {
     let result: ChecklistResult
     var baseURL: URL = APIConfig.development.baseURL
 
+    @AppStorage("defaultStock") private var defaultStock: String = ""
+
+    private var isDefault: Bool {
+        defaultStock == result.symbol
+    }
+
     var body: some View {
         VStack(spacing: 16) {
             companyInfo
@@ -44,6 +50,17 @@ struct StockHeader: View {
             }
 
             Spacer()
+
+            Button {
+                if isDefault {
+                    defaultStock = ""
+                } else {
+                    defaultStock = result.symbol
+                }
+            } label: {
+                Image(systemName: isDefault ? "pin.fill" : "pin")
+            }
+            .accessibilityLabel(isDefault ? "Remove as default" : "Set as default")
 
             AddToWatchlistButton(symbol: result.symbol)
         }
