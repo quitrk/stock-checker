@@ -12,6 +12,7 @@ struct ChecklistItemRow: View {
                 .font(.body)
                 .foregroundStyle(item.status.color)
                 .frame(width: 20)
+                .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
@@ -38,6 +39,9 @@ struct ChecklistItemRow: View {
             }
         }
         .padding(.vertical, 8)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(item.label), \(item.displayValue)")
+        .accessibilityValue(item.status.accessibilityDescription)
     }
 }
 
@@ -54,6 +58,8 @@ struct ThresholdsView: View {
         }
         .font(.caption2)
         .padding(.top, 4)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Thresholds: Safe \(thresholds.safe), Warning \(thresholds.warning), Danger \(thresholds.danger)")
     }
 
     private func thresholdLabel(_ title: String, _ value: String, _ color: Color) -> some View {
@@ -64,6 +70,7 @@ struct ThresholdsView: View {
             Text(value)
                 .foregroundStyle(.tertiary)
         }
+        .accessibilityHidden(true)
     }
 }
 

@@ -9,13 +9,26 @@ struct PriceChange: View {
 
     private var isUp: Bool { change >= 0 }
 
+    private var changeDescription: String {
+        if change > 0 {
+            return "Up"
+        } else if change < 0 {
+            return "Down"
+        } else {
+            return "Unchanged"
+        }
+    }
+
     var body: some View {
         HStack(spacing: 4) {
             Image(systemName: isUp ? "arrow.up.right" : "arrow.down.right")
+                .accessibilityHidden(true)
             Text(changePercent.asPercent)
         }
         .font(.subheadline)
         .foregroundStyle(Color.forPriceChange(change))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(changeDescription) \(changePercent.asPercent)")
     }
 }
 

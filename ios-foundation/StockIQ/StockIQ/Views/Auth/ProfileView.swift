@@ -32,6 +32,7 @@ struct ProfileView: View {
                             }
                             .frame(width: 60, height: 60)
                             .clipShape(Circle())
+                            .accessibilityLabel("Profile picture")
 
                             // Name & Email
                             VStack(alignment: .leading, spacing: 4) {
@@ -59,9 +60,12 @@ struct ProfileView: View {
                     } label: {
                         HStack {
                             Image(systemName: "rectangle.portrait.and.arrow.right")
+                                .accessibilityHidden(true)
                             Text("Sign Out")
                         }
                     }
+                    .accessibilityLabel("Sign Out")
+                    .accessibilityHint("Double tap to sign out of your account")
                 }
             }
             .navigationTitle("Profile")

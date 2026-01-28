@@ -87,6 +87,8 @@ struct WatchlistsView: View {
                                 .font(.title3)
                         }
                     }
+                    .accessibilityLabel(api.isAuthenticated ? "Profile" : "Sign in")
+                    .accessibilityHint(api.isAuthenticated ? "View your profile" : "Sign in to your account")
                 }
             }
             .navigationDestination(for: WatchlistSummary.self) { watchlist in
@@ -163,9 +165,12 @@ struct WatchlistRow: View {
             if watchlist.isSystemWatchlist {
                 Image(systemName: "building.columns")
                     .foregroundStyle(.secondary)
+                    .accessibilityHidden(true)
             }
         }
         .padding(.vertical, 4)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(watchlist.name), \(watchlist.symbolCount) symbols\(watchlist.isSystemWatchlist ? ", ETF holdings" : "")")
     }
 }
 

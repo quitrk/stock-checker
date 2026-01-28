@@ -21,6 +21,7 @@ struct LoginView: View {
                         .scaledToFit()
                         .frame(width: 120, height: 120)
                         .clipShape(RoundedRectangle(cornerRadius: 24))
+                        .accessibilityLabel("StockIQ app logo")
 
                     Text("StockIQ")
                         .font(.largeTitle)
@@ -61,6 +62,8 @@ struct LoginView: View {
                         )
                     }
                     .disabled(authManager.isAuthenticating)
+                    .accessibilityLabel("Continue with Google")
+                    .accessibilityHint("Sign in using your Google account")
                 }
                 .padding(.horizontal, 24)
 

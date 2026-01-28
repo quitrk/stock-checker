@@ -34,6 +34,8 @@ struct HomeView: View {
                                     .font(.title3)
                             }
                         }
+                        .accessibilityLabel(api.isAuthenticated ? "Profile" : "Sign in")
+                        .accessibilityHint(api.isAuthenticated ? "View your profile" : "Sign in to your account")
                     }
                 }
                 .sheet(isPresented: $showAuthSheet) {

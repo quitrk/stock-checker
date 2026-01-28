@@ -18,6 +18,9 @@ struct CategorySection: View {
                 header
             }
             .buttonStyle(.plain)
+            .accessibilityLabel("\(category.name), \(category.status.accessibilityDescription)")
+            .accessibilityValue(isExpanded ? "Expanded" : "Collapsed")
+            .accessibilityHint("Double tap to \(isExpanded ? "collapse" : "expand")")
 
             // Items (expandable)
             if isExpanded {

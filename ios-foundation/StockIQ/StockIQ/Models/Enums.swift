@@ -28,6 +28,15 @@ enum ChecklistStatus: String, Codable, CaseIterable {
         case .unavailable: return "questionmark.circle.fill"
         }
     }
+
+    var accessibilityDescription: String {
+        switch self {
+        case .safe: return "Safe"
+        case .warning: return "Warning"
+        case .danger: return "Danger"
+        case .unavailable: return "Unavailable"
+        }
+    }
 }
 
 // MARK: - Catalyst Event Type

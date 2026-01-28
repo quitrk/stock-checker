@@ -23,6 +23,7 @@ struct AddToWatchlistButton: View {
         } label: {
             Image(systemName: "plus.circle")
         }
+        .accessibilityLabel("Add \(symbol) to watchlist")
         .sheet(isPresented: $showSheet) {
             NavigationStack {
                 watchlistContent
@@ -206,11 +207,15 @@ private struct WatchlistToggleRow: View {
                 } else if isInWatchlist {
                     Image(systemName: "checkmark.circle.fill")
                         .foregroundStyle(.green)
+                        .accessibilityHidden(true)
                 }
             }
         }
         .buttonStyle(.plain)
         .disabled(isLoading)
+        .accessibilityLabel(watchlist.name)
+        .accessibilityValue(isInWatchlist ? "Added" : "Not added")
+        .accessibilityHint(isInWatchlist ? "Double tap to remove from watchlist" : "Double tap to add to watchlist")
     }
 }
 

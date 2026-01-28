@@ -12,11 +12,14 @@ struct SearchBar: View {
         HStack {
             Image(systemName: "magnifyingglass")
                 .foregroundStyle(.secondary)
+                .accessibilityHidden(true)
 
             TextField("Search symbol (e.g. AAPL)", text: $text)
                 .textInputAutocapitalization(.characters)
                 .autocorrectionDisabled()
                 .onSubmit(onSubmit)
+                .accessibilityLabel("Stock symbol")
+                .accessibilityHint("Enter a stock ticker symbol to search")
 
             if !text.isEmpty {
                 Button {
@@ -26,6 +29,7 @@ struct SearchBar: View {
                     Image(systemName: "xmark.circle.fill")
                         .foregroundStyle(.secondary)
                 }
+                .accessibilityLabel("Clear search")
             }
         }
         .padding()

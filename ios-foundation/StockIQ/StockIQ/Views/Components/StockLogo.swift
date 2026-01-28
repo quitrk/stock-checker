@@ -29,6 +29,7 @@ struct StockLogo: View {
         }
         .frame(width: size, height: size)
         .clipShape(RoundedRectangle(cornerRadius: 8))
+        .accessibilityLabel("\(symbol) logo")
     }
 
     private var placeholder: some View {
