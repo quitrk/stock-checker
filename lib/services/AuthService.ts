@@ -81,4 +81,10 @@ export class AuthService {
     await deleteCache(`oauth_state:${state}`);
     return data;
   }
+
+  async deleteUser(userId: string): Promise<void> {
+    // Delete user profile
+    await deleteCache(`user:${userId}:profile`);
+    console.log(`[Auth] Deleted user ${userId}`);
+  }
 }

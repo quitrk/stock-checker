@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
-import { getCurrentUser, logout as apiLogout, loginWithGoogle, loginWithGitHub } from '../api/authApi';
+import { getCurrentUser, logout as apiLogout, deleteAccount as apiDeleteAccount, loginWithGoogle, loginWithGitHub } from '../api/authApi';
 import type { User } from '../../lib/types/auth';
 
 interface AuthContextType {
@@ -8,6 +8,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   login: (provider: 'google' | 'github') => void;
   logout: () => Promise<void>;
+  deleteAccount: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -53,6 +54,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }, []);
 
+  const deleteAccount = useCallback(async () => {
+    await apiDeleteAccount();
+    setUser(null);
+  }, []);
+
   return (
     <AuthContext.Provider value={{
       user,
@@ -60,6 +66,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isAuthenticated: !!user,
       login,
       logout,
+      deleteAccount,
     }}>
       {children}
     </AuthContext.Provider>

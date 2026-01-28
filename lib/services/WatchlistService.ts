@@ -179,6 +179,17 @@ export class WatchlistService {
     return true;
   }
 
+  async deleteAllUserWatchlists(userId: string): Promise<void> {
+    const watchlistIds = await getCached<string[]>(`user:${userId}:watchlists`) || [];
+
+    for (const id of watchlistIds) {
+      await deleteCache(`watchlist:${id}`);
+    }
+
+    await deleteCache(`user:${userId}:watchlists`);
+    console.log(`[Watchlist] Deleted all ${watchlistIds.length} watchlists for user ${userId}`);
+  }
+
   async addSymbol(watchlistId: string, userId: string, symbol: string): Promise<Watchlist | null> {
     const watchlist = await this.getOwnedWatchlist(watchlistId, userId);
     if (!watchlist) return null;

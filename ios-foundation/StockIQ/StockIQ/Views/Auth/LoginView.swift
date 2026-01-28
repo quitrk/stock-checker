@@ -97,7 +97,16 @@ struct LoginView: View {
                 }
 
                 Spacer()
-                    .frame(height: 50)
+
+                // Legal Links
+                HStack(spacing: 16) {
+                    Link("Privacy Policy", destination: URL(string: "https://stockiq.me/privacy")!)
+                    Text("·")
+                        .foregroundStyle(.secondary)
+                    Link("Terms of Service", destination: URL(string: "https://stockiq.me/terms")!)
+                }
+                .font(.caption)
+                .padding(.bottom, 24)
             }
             .frame(width: geometry.size.width)
         }

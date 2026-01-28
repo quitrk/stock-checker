@@ -219,6 +219,13 @@ final class AuthManager: NSObject {
         await apiClient.logout()
         keychain.deleteSession()
     }
+
+    // MARK: - Delete Account
+
+    func deleteAccount() async throws {
+        try await apiClient.deleteAccount()
+        keychain.deleteSession()
+    }
 }
 
 // MARK: - ASWebAuthenticationPresentationContextProviding

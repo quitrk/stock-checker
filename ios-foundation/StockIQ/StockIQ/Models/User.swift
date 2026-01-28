@@ -56,3 +56,7 @@ struct AppleAuthRequest: Encodable {
 struct AppleAuthResponse: Decodable {
     let sessionId: String
 }
+
+struct SuccessResponse: Decodable {
+    let success: Bool
+}

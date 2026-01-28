@@ -21,6 +21,17 @@ export async function logout(): Promise<void> {
   });
 }
 
+export async function deleteAccount(): Promise<void> {
+  const response = await fetch(`${API_BASE}/account`, {
+    method: 'DELETE',
+    credentials: 'include',
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to delete account');
+  }
+}
+
 export function loginWithGoogle(returnTo?: string): void {
   const params = returnTo ? `?returnTo=${encodeURIComponent(returnTo)}` : '';
   window.location.href = `${API_BASE}/google${params}`;

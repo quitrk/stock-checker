@@ -98,6 +98,13 @@ final class APIClient {
         isAuthenticated = false
     }
 
+    func deleteAccount() async throws {
+        let _: SuccessResponse = try await delete("/api/auth/account")
+        sessionToken = nil
+        currentUser = nil
+        isAuthenticated = false
+    }
+
     // MARK: - Checklist
 
     func getChecklist(symbol: String, refresh: Bool = false) async throws -> ChecklistResult {

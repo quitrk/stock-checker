@@ -9,6 +9,9 @@ struct ProfileView: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var showLogoutConfirmation = false
+    @State private var showDeleteConfirmation = false
+    @State private var isDeleting = false
+    @State private var deleteError: String?
 
     var body: some View {
         NavigationStack {
@@ -53,6 +56,37 @@ struct ProfileView: View {
                     }
                 }
 
+                // Legal Section
+                Section {
+                    Link(destination: URL(string: "https://stockiq.me/privacy")!) {
+                        HStack {
+                            Image(systemName: "hand.raised")
+                                .accessibilityHidden(true)
+                            Text("Privacy Policy")
+                            Spacer()
+                            Image(systemName: "arrow.up.right")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .accessibilityHidden(true)
+                        }
+                    }
+                    .foregroundStyle(.primary)
+
+                    Link(destination: URL(string: "https://stockiq.me/terms")!) {
+                        HStack {
+                            Image(systemName: "doc.text")
+                                .accessibilityHidden(true)
+                            Text("Terms of Service")
+                            Spacer()
+                            Image(systemName: "arrow.up.right")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .accessibilityHidden(true)
+                        }
+                    }
+                    .foregroundStyle(.primary)
+                }
+
                 // Actions Section
                 Section {
                     Button(role: .destructive) {
@@ -66,6 +100,29 @@ struct ProfileView: View {
                     }
                     .accessibilityLabel("Sign Out")
                     .accessibilityHint("Double tap to sign out of your account")
+                }
+
+                // Danger Zone
+                Section {
+                    Button(role: .destructive) {
+                        showDeleteConfirmation = true
+                    } label: {
+                        HStack {
+                            if isDeleting {
+                                ProgressView()
+                                    .padding(.trailing, 4)
+                            } else {
+                                Image(systemName: "trash")
+                                    .accessibilityHidden(true)
+                            }
+                            Text("Delete Account")
+                        }
+                    }
+                    .disabled(isDeleting)
+                    .accessibilityLabel("Delete Account")
+                    .accessibilityHint("Double tap to permanently delete your account and all data")
+                } footer: {
+                    Text("This will permanently delete your account, watchlists, and all associated data.")
                 }
             }
             .navigationTitle("Profile")
@@ -92,7 +149,44 @@ struct ProfileView: View {
             } message: {
                 Text("Are you sure you want to sign out?")
             }
+            .confirmationDialog(
+                "Delete Account",
+                isPresented: $showDeleteConfirmation,
+                titleVisibility: .visible
+            ) {
+                Button("Delete Account", role: .destructive) {
+                    Task {
+                        await deleteAccount()
+                    }
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("This action cannot be undone. Your account, watchlists, and all data will be permanently deleted.")
+            }
+            .alert("Error", isPresented: .constant(deleteError != nil)) {
+                Button("OK") {
+                    deleteError = nil
+                }
+            } message: {
+                if let error = deleteError {
+                    Text(error)
+                }
+            }
         }
+    }
+
+    private func deleteAccount() async {
+        isDeleting = true
+        deleteError = nil
+
+        do {
+            try await authManager.deleteAccount()
+            dismiss()
+        } catch {
+            deleteError = "Failed to delete account. Please try again."
+        }
+
+        isDeleting = false
     }
 
     private func formatDate(_ isoString: String) -> String {

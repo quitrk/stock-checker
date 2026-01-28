@@ -3,8 +3,10 @@ import { useAuth } from '../contexts/AuthContext';
 import './AuthButton.css';
 
 export function AuthButton() {
-  const { user, isLoading, isAuthenticated, login, logout } = useAuth();
+  const { user, isLoading, isAuthenticated, login, logout, deleteAccount } = useAuth();
   const [showDropdown, setShowDropdown] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -42,12 +44,70 @@ export function AuthButton() {
               <span className="user-email">{user.email}</span>
             </div>
             <div className="auth-dropdown-divider" />
+            <a
+              href="/privacy"
+              className="auth-dropdown-item"
+              onClick={() => setShowDropdown(false)}
+            >
+              Privacy Policy
+            </a>
+            <a
+              href="/terms"
+              className="auth-dropdown-item"
+              onClick={() => setShowDropdown(false)}
+            >
+              Terms of Service
+            </a>
+            <div className="auth-dropdown-divider" />
             <button
               className="auth-dropdown-item"
               onClick={() => { logout(); setShowDropdown(false); }}
             >
               Sign out
             </button>
+            <button
+              className="auth-dropdown-item auth-dropdown-item-danger"
+              onClick={() => { setShowDeleteConfirm(true); setShowDropdown(false); }}
+            >
+              Delete Account
+            </button>
+          </div>
+        )}
+
+        {showDeleteConfirm && (
+          <div className="auth-modal-overlay" onClick={() => !isDeleting && setShowDeleteConfirm(false)}>
+            <div className="auth-modal" onClick={(e) => e.stopPropagation()}>
+              <h3 className="auth-modal-title">Delete Account</h3>
+              <p className="auth-modal-message">
+                This action cannot be undone. Your account, watchlists, and all data will be permanently deleted.
+              </p>
+              <div className="auth-modal-actions">
+                <button
+                  className="auth-modal-button auth-modal-button-cancel"
+                  onClick={() => setShowDeleteConfirm(false)}
+                  disabled={isDeleting}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="auth-modal-button auth-modal-button-danger"
+                  onClick={async () => {
+                    setIsDeleting(true);
+                    try {
+                      await deleteAccount();
+                      setShowDeleteConfirm(false);
+                    } catch {
+                      alert('Failed to delete account. Please try again.');
+                    } finally {
+                      setIsDeleting(false);
+                    }
+                  }}
+                  disabled={isDeleting}
+                >
+                  {isDeleting ? 'Deleting...' : 'Delete Account'}
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>

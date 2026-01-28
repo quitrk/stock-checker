@@ -1,11 +1,13 @@
 import { Hono } from 'hono';
 import * as jose from 'jose';
 import { AuthService } from '../services/AuthService.js';
+import { WatchlistService } from '../services/WatchlistService.js';
 import { setSessionCookie, clearSession, getAuthUser } from '../middleware/auth.js';
 import type { AppleAuthRequest } from '../types/auth.js';
 
 const auth = new Hono();
 const authService = new AuthService();
+const watchlistService = new WatchlistService();
 
 // Get current user
 auth.get('/me', async (c) => {
@@ -17,6 +19,31 @@ auth.get('/me', async (c) => {
 auth.post('/logout', async (c) => {
   await clearSession(c);
   return c.json({ success: true });
+});
+
+// Delete account
+auth.delete('/account', async (c) => {
+  const user = await getAuthUser(c);
+  if (!user) {
+    return c.json({ error: 'Unauthorized' }, 401);
+  }
+
+  try {
+    // Delete all user's watchlists
+    await watchlistService.deleteAllUserWatchlists(user.id);
+
+    // Delete user profile
+    await authService.deleteUser(user.id);
+
+    // Clear session
+    await clearSession(c);
+
+    console.log(`[Auth] Deleted account for user ${user.id} (${user.email})`);
+    return c.json({ success: true });
+  } catch (err) {
+    console.error('[Auth] Delete account error:', err);
+    return c.json({ error: 'Failed to delete account' }, 500);
+  }
 });
 
 // Initiate Google OAuth
