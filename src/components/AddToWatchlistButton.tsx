@@ -68,8 +68,9 @@ export function AddToWatchlistButton({ symbol }: AddToWatchlistButtonProps) {
         onClick={handleToggle}
         size='sm'
         title={isAuthenticated ? 'Add to watchlist' : 'Sign in to save watchlists'}
+        className="add-watchlist-btn"
       >
-        Add to Watchlist
+        +
       </Button>
 
       {showDropdown && (

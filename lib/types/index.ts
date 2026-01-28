@@ -171,3 +171,13 @@ export interface ChecklistResult {
   secLastFetchedDate?: string; // YYYY-MM-DD of most recent SEC filing processed
   cik?: string; // SEC Central Index Key
 }
+
+// Search types
+export type SearchResultType = 'EQUITY' | 'ETF' | 'MUTUALFUND' | 'INDEX' | 'CURRENCY' | 'CRYPTOCURRENCY' | 'FUTURE' | 'OPTION';
+
+export interface SearchResult {
+  symbol: string;
+  name: string;
+  type: SearchResultType;
+  exchange: string;
+}

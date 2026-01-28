@@ -4,6 +4,7 @@ import type { Quote } from 'yahoo-finance2/modules/quote';
 import type { IFinanceProvider } from './IFinanceProvider.js';
 import { ProviderRateLimitError } from './IFinanceProvider.js';
 import type { FundamentalData, MarketData, StockData, HistoricalBar, NewsItem, CalendarEvents, AnalystData, AnalystRating, ShortInterestData, InsiderTransaction, EarningsHistory, CatalystEvent, CachedHistoricalData } from './types.js';
+import type { SearchResult, SearchResultType } from '../../types/index.js';
 import { getCached, setCache, cacheKey } from '../CacheService.js';
 
 // News publishers to filter out (low quality/spammy)
@@ -809,6 +810,51 @@ export class YahooFinanceProvider implements IFinanceProvider {
     } catch (error) {
       console.error(`[YahooFinance] Error fetching ETF holdings for ${etfSymbol}:`, error);
       return [];
+    }
+  }
+
+  async searchSymbols(query: string, limit: number = 10): Promise<SearchResult[]> {
+    console.log(`[YahooFinance] Searching for "${query}"`);
+
+    try {
+      const result = await this.retry(() => this.yahooFinance.search(query, {
+        quotesCount: 30,
+        newsCount: 0,
+      }));
+
+      const results: SearchResult[] = (result.quotes || [])
+        .filter((quote: any) =>
+          quote.isYahooFinance &&
+          quote.symbol &&
+          (quote.quoteType === 'EQUITY' || quote.quoteType === 'ETF' || quote.quoteType === 'INDEX')
+        )
+        .slice(0, limit)
+        .map((quote: any) => ({
+          symbol: quote.symbol,
+          name: quote.longname || quote.shortname || quote.symbol,
+          type: this.mapQuoteType(quote.quoteType),
+          exchange: quote.exchDisp || quote.exchange || '',
+        }));
+
+      console.log(`[YahooFinance] Found ${results.length} results for "${query}"`);
+      return results;
+    } catch (error) {
+      console.error(`[YahooFinance] Error searching for "${query}":`, error);
+      return [];
+    }
+  }
+
+  private mapQuoteType(quoteType?: string): SearchResultType {
+    switch (quoteType) {
+      case 'EQUITY': return 'EQUITY';
+      case 'ETF': return 'ETF';
+      case 'MUTUALFUND': return 'MUTUALFUND';
+      case 'INDEX': return 'INDEX';
+      case 'CURRENCY': return 'CURRENCY';
+      case 'CRYPTOCURRENCY': return 'CRYPTOCURRENCY';
+      case 'FUTURE': return 'FUTURE';
+      case 'OPTION': return 'OPTION';
+      default: return 'EQUITY';
     }
   }
 }

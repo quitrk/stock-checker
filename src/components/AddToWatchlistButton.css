@@ -2,6 +2,15 @@
   position: relative;
 }
 
+.add-watchlist-btn {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  font-size: 1.25rem;
+  font-weight: 300;
+  line-height: 1;
+}
+
 .watchlist-dropdown {
   position: absolute;
   top: 100%;

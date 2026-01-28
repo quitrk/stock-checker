@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { ToastDuration } from './Toast';
@@ -17,7 +17,7 @@ import { Button } from './Button';
 import { AuthButton } from './AuthButton';
 import { AddToWatchlistButton } from './AddToWatchlistButton';
 import { WatchlistSidebar } from './WatchlistSidebar';
-import { Spinner } from './Spinner';
+import { SearchAutocomplete } from './SearchAutocomplete';
 import './StockChecklist.css';
 
 const STATUS_ICONS: Record<ChecklistStatus, string> = {
@@ -55,14 +55,6 @@ export function StockChecklist() {
   const [loading, setLoading] = useState(false);
   const [checklist, setChecklist] = useState<ChecklistResult | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  // Focus input after loading completes
-  useEffect(() => {
-    if (!loading) {
-      inputRef.current?.focus();
-    }
-  }, [loading]);
 
   const fetchChecklist = useCallback(async (sym: string) => {
     if (!sym.trim()) return;
@@ -82,16 +74,6 @@ export function StockChecklist() {
       setLoading(false);
     }
   }, [showError, showWarning]);
-
-  const handleSubmit = useCallback(async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!symbol.trim()) {
-      showWarning('Please enter a stock symbol', ToastDuration.Short);
-      return;
-    }
-    setSidebarOpen(false);
-    fetchChecklist(symbol);
-  }, [symbol, fetchChecklist, showWarning]);
 
   // Load symbol from URL on mount
   useEffect(() => {
@@ -120,6 +102,7 @@ export function StockChecklist() {
 
   const handleSelectSymbol = useCallback((sym: string) => {
     setSymbol(sym);
+    setSidebarOpen(false);
     fetchChecklist(sym);
   }, [fetchChecklist]);
 
@@ -156,30 +139,13 @@ export function StockChecklist() {
                 onError={(e) => { e.currentTarget.style.display = 'none'; }}
               />
             )}
-            <form onSubmit={handleSubmit} className="symbol-form">
-              <div className="symbol-input-group">
-                <input
-                  ref={inputRef}
-                  type="text"
-                  value={symbol}
-                  onChange={(e) => setSymbol(e.target.value.toUpperCase())}
-                  placeholder="Symbol"
-                  className="symbol-input"
-                  disabled={loading}
-                />
-                <Button type="submit" variant="primary" size="sm" disabled={loading}>
-                  {loading ? <Spinner size="sm" /> : 'Go'}
-                </Button>
-              </div>
-            </form>
-            {checklist && (
-              <>
-                <span className="header-company-name">{checklist.companyName}</span>
-                <span className="header-industry">{checklist.industry}</span>
-                <span className="header-price">${(checklist.price ?? 0).toFixed(2)}</span>
-                <span className="header-market-cap">{formatMarketCap(checklist.marketCap)}</span>
-              </>
-            )}
+            <SearchAutocomplete
+              value={symbol}
+              onChange={setSymbol}
+              onSelect={handleSelectSymbol}
+              onSubmit={() => fetchChecklist(symbol)}
+              disabled={loading}
+            />
           </div>
           <div className="header-right">
             <AuthButton />
@@ -188,10 +154,20 @@ export function StockChecklist() {
 
       {isAuthenticated && (
         <div className="actions-bar">
-          <Button variant="secondary" size="sm" onClick={() => setSidebarOpen(!sidebarOpen)}>
-            ☰ Watchlists
-          </Button>
-          {checklist && <AddToWatchlistButton symbol={checklist.symbol} />}
+          <div className="actions-left">
+            <Button variant="secondary" size="sm" onClick={() => setSidebarOpen(!sidebarOpen)}>
+              ☰ Watchlists
+            </Button>
+          </div>
+          {checklist && (
+            <div className="actions-right">
+              <span className="header-company-name">{checklist.companyName}</span>
+              <span className="header-industry">{checklist.industry}</span>
+              <span className="header-price">${(checklist.price ?? 0).toFixed(2)}</span>
+              <span className="header-market-cap">{formatMarketCap(checklist.marketCap)}</span>
+              <AddToWatchlistButton symbol={checklist.symbol} />
+            </div>
+          )}
         </div>
       )}
 

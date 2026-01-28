@@ -105,6 +105,15 @@ final class APIClient {
         isAuthenticated = false
     }
 
+    // MARK: - Search
+
+    func searchSymbols(query: String, limit: Int = 10) async throws -> [SearchResult] {
+        guard !query.trimmingCharacters(in: .whitespaces).isEmpty else { return [] }
+        let encoded = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? query
+        let response: SearchResponse = try await get("/api/search?q=\(encoded)&limit=\(limit)")
+        return response.results
+    }
+
     // MARK: - Checklist
 
     func getChecklist(symbol: String, refresh: Bool = false) async throws -> ChecklistResult {

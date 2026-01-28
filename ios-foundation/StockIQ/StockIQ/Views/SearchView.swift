@@ -15,62 +15,68 @@ struct SearchView: View {
     @State private var hasLoadedDefault = false
 
     var body: some View {
-        VStack(spacing: 0) {
-            SearchBar(text: $searchText) {
-                Task { await search() }
-            } onClear: {
-                result = nil
-                errorMessage = nil
+        ZStack {
+            // Main content
+            VStack(spacing: 0) {
+                if isLoading {
+                    Spacer()
+                    ProgressView("Loading...")
+                    Spacer()
+                } else if let error = errorMessage {
+                    Spacer()
+                    ContentUnavailableView {
+                        Label("Error", systemImage: "exclamationmark.triangle")
+                    } description: {
+                        Text(error)
+                    } actions: {
+                        Button("Try Again") {
+                            Task { await search() }
+                        }
+                        .buttonStyle(.bordered)
+                    }
+                    Spacer()
+                } else if let result {
+                    ScrollView {
+                        VStack(spacing: 16) {
+                            StockHeader(result: result)
+                            ChecklistView(categories: result.categories)
+
+                            // Analyst ratings
+                            if let analystData = result.analystData {
+                                AnalystSection(analystData: analystData, currentPrice: result.price)
+                            }
+
+                            // Catalysts
+                            if !result.catalystEvents.isEmpty {
+                                CatalystsSection(catalystEvents: result.catalystEvents, currentSymbol: result.symbol)
+                            }
+
+                            // News
+                            if !result.news.isEmpty {
+                                NewsSection(news: result.news, summary: result.newsSummary)
+                            }
+                        }
+                        .padding(.vertical)
+                        .padding(.bottom, 80) // Space for bottom search bar
+                    }
+                } else {
+                    Spacer()
+                    ContentUnavailableView {
+                        Label("Search for a Stock", systemImage: "magnifyingglass")
+                    } description: {
+                        Text("Enter a ticker symbol to view stock information")
+                    }
+                    Spacer()
+                }
             }
 
-            if isLoading {
-                Spacer()
-                ProgressView("Loading...")
-                Spacer()
-            } else if let error = errorMessage {
-                Spacer()
-                ContentUnavailableView {
-                    Label("Error", systemImage: "exclamationmark.triangle")
-                } description: {
-                    Text(error)
-                } actions: {
-                    Button("Try Again") {
-                        Task { await search() }
-                    }
-                    .buttonStyle(.bordered)
-                }
-                Spacer()
-            } else if let result {
-                ScrollView {
-                    VStack(spacing: 16) {
-                        StockHeader(result: result)
-                        ChecklistView(categories: result.categories)
-
-                        // Analyst ratings
-                        if let analystData = result.analystData {
-                            AnalystSection(analystData: analystData, currentPrice: result.price)
-                        }
-
-                        // Catalysts
-                        if !result.catalystEvents.isEmpty {
-                            CatalystsSection(catalystEvents: result.catalystEvents, currentSymbol: result.symbol)
-                        }
-
-                        // News
-                        if !result.news.isEmpty {
-                            NewsSection(news: result.news, summary: result.newsSummary)
-                        }
-                    }
-                    .padding(.vertical)
-                }
-            } else {
-                Spacer()
-                ContentUnavailableView {
-                    Label("Search for a Stock", systemImage: "magnifyingglass")
-                } description: {
-                    Text("Enter a ticker symbol to view stock information")
-                }
-                Spacer()
+            // Bottom search bar overlay
+            SearchAutocompleteBar(text: $searchText) { symbol in
+                Task { await search(symbol: symbol) }
+            } onSubmit: {
+                Task { await search() }
+            } onClear: {
+                // Keep the loaded result visible
             }
         }
         .background(Color.groupedBackground)
@@ -85,8 +91,8 @@ struct SearchView: View {
         }
     }
 
-    private func search() async {
-        let symbol = searchText.trimmingCharacters(in: .whitespaces).uppercased()
+    private func search(symbol: String? = nil) async {
+        let symbol = (symbol ?? searchText).trimmingCharacters(in: .whitespaces).uppercased()
         guard !symbol.isEmpty else { return }
 
         Haptics.light()

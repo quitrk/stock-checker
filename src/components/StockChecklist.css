@@ -1,6 +1,6 @@
 .stock-checklist {
   padding: 1rem 1.5rem;
-  padding-top: 124px; /* 60px header + 48px toolbar + 8px spacing */
+  padding-top: 124px; /* 60px header + 48px toolbar + 16px spacing */
   padding-bottom: 3rem; /* space for fixed footer */
   overflow-x: hidden;
   min-height: 100vh;
@@ -63,6 +63,7 @@
   border-radius: 4px;
   object-fit: contain;
   background: #fff;
+  flex-shrink: 0;
 }
 
 .header-logo.clickable {
@@ -197,7 +198,7 @@
 /* Actions bar - watchlist toggle + add to watchlist */
 .actions-bar {
   position: fixed;
-  top: 60px; /* desktop header height */
+  top: 60px;
   left: 0;
   right: 0;
   height: 48px;
@@ -205,16 +206,30 @@
   align-items: center;
   justify-content: space-between;
   padding: 0 1.5rem;
-  background: var(--surface);
-  border-bottom: 1px solid var(--border-color);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  background: #181818;
+}
+
+.actions-left {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.actions-right {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
   z-index: 1000;
 }
 
 @media (max-width: 768px) {
   .actions-bar {
-    top: 48px; /* mobile header height */
+    top: 48px;
     padding: 0 0.75rem;
+  }
+
+  .actions-right {
+    gap: 0.75rem;
   }
 }
 
@@ -509,13 +524,12 @@
 
   .header-left {
     flex: 1;
-    flex-wrap: wrap;
     gap: 0.5rem;
     min-width: 0;
   }
 
-  .header-company-name,
-  .header-industry {
+  .actions-right .header-company-name,
+  .actions-right .header-industry {
     display: none;
   }
 
