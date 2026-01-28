@@ -156,9 +156,10 @@ export class CatalystService {
     symbol: string,
     companyName: string,
     industry: string
-  ): Promise<{ events: CatalystEvent[]; secLastFetchedDate: string | null }> {
+  ): Promise<{ events: CatalystEvent[]; secLastFetchedDate: string | null; cik: string | null }> {
     const allEvents: CatalystEvent[] = [];
     let secLastFetchedDate: string | null = null;
+    let cik: string | null = null;
 
     // Fetch from all sources in parallel
     const [yahooResult, secResult, ctResult, finnhubResult] = await Promise.all([
@@ -169,7 +170,7 @@ export class CatalystService {
       // SEC
       this.secService.getCatalystEvents(symbol, industry)
         .then(result => result)
-        .catch(() => ({ events: [], secLastFetchedDate: null })),
+        .catch(() => ({ events: [], secLastFetchedDate: null, cik: null })),
       // ClinicalTrials.gov
       this.clinicalTrialsProvider.getCatalystEvents(symbol, companyName)
         .then(events => ({ events }))
@@ -185,12 +186,13 @@ export class CatalystService {
     allEvents.push(...yahooResult.events);
     allEvents.push(...secResult.events);
     secLastFetchedDate = secResult.secLastFetchedDate;
+    cik = secResult.cik;
     allEvents.push(...ctResult.events);
     allEvents.push(...finnhubResult.events);
 
     const deduped = this.deduplicateEvents(allEvents);
     deduped.sort((a, b) => a.date.localeCompare(b.date));
-    return { events: deduped, secLastFetchedDate };
+    return { events: deduped, secLastFetchedDate, cik };
   }
 
 

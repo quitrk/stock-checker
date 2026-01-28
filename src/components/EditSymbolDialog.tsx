@@ -55,6 +55,7 @@ export function EditSymbolDialog({
       onClose={handleCancel}
       title={`Edit ${symbol}`}
       disabled={isLoading}
+      showCloseButton={false}
     >
       <div className="edit-symbol-field">
         <label htmlFor="added-date">Date Added</label>

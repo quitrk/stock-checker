@@ -151,6 +151,12 @@ final class APIClient {
         return response.catalysts
     }
 
+    // MARK: - Catalyst Info
+
+    func getCatalystInfo() async throws -> CatalystInfoResponse {
+        try await get("/api/catalysts/info")
+    }
+
     // MARK: - HTTP Methods
 
     private func get<T: Decodable>(_ path: String) async throws -> T {

@@ -121,3 +121,54 @@ struct CatalystEvent: Codable, Identifiable {
 struct CatalystsResponse: Codable {
     let catalysts: [CatalystEvent]
 }
+
+// MARK: - Catalyst Info (Educational Content)
+
+struct CatalystTypeInfo: Codable {
+    let label: String
+    let icon: String
+    let description: String
+    let whyItMatters: String
+    let category: String
+}
+
+struct CatalystCategoryInfo: Codable, Identifiable {
+    let id: String
+    let name: String
+    let description: String
+}
+
+struct TimelineStep: Codable {
+    let eventType: String
+    let stage: String
+    let description: String?
+    let successRate: String?
+    let duration: String?
+}
+
+struct CatalystInfoResponse: Codable {
+    let types: [String: CatalystTypeInfo]
+    let categories: [CatalystCategoryInfo]
+    let timeline: [TimelineStep]
+
+    func info(for eventType: CatalystEventType) -> CatalystTypeInfo? {
+        types[eventType.rawValue]
+    }
+
+    func eventTypes(for categoryId: String) -> [(CatalystEventType, CatalystTypeInfo)] {
+        types.compactMap { key, value in
+            guard value.category == categoryId,
+                  let eventType = CatalystEventType(rawValue: key) else { return nil }
+            return (eventType, value)
+        }.sorted { $0.1.label < $1.1.label }
+    }
+
+    func relevantTimeline(for eventTypes: Set<CatalystEventType>) -> [(TimelineStep, CatalystTypeInfo)] {
+        timeline.compactMap { step in
+            guard let eventType = CatalystEventType(rawValue: step.eventType),
+                  eventTypes.contains(eventType),
+                  let info = types[step.eventType] else { return nil }
+            return (step, info)
+        }
+    }
+}

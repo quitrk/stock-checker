@@ -224,9 +224,6 @@ async function updateETFWatchlists() {
       const symbols = holdings.map(h => h.symbol);
       console.log(`  Found ${symbols.length} holdings`);
 
-      // Collect unique symbols across all ETFs
-      symbols.forEach(s => allSymbols.add(s.toUpperCase()));
-
       // Create a weight map for quick lookup
       const weightMap = new Map(holdings.map(h => [h.symbol.toUpperCase(), h.weight]));
 
@@ -236,6 +233,20 @@ async function updateETFWatchlists() {
       // Fetch price data for all symbols
       console.log(`  Fetching price data...`);
       const quotes = await financeProvider.getMultipleQuotes(symbols);
+
+      // Only collect symbols that have valid quote data (filters out invalid/OTC tickers)
+      let validCount = 0;
+      for (const symbol of symbols) {
+        const data = quotes.get(symbol.toUpperCase());
+        if (data && data.price > 0) {
+          allSymbols.add(symbol.toUpperCase());
+          validCount++;
+        }
+      }
+      const skippedCount = symbols.length - validCount;
+      if (skippedCount > 0) {
+        console.log(`  Skipped ${skippedCount} symbols without valid quote data`);
+      }
 
       // Build stock data array with weights
       const stocks = symbols.map(symbol => {

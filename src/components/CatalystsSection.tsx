@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import type { CatalystEvent, CatalystEventType } from '../../lib/types/index.js';
+import { CATALYST_INFO, CATALYST_CATEGORIES, getCatalystsByCategory, DRUG_DEVELOPMENT_TIMELINE } from '../../lib/constants/catalysts.js';
 import { useApp } from '../contexts/AppContext';
 import { getWatchlistCatalysts } from '../api/watchlistApi';
 import { Expander } from './Expander';
+import { Dialog } from './Dialog';
 import './CatalystsSection.css';
 
 interface CatalystsSectionProps {
@@ -14,54 +16,34 @@ interface CatalystsSectionProps {
   watchlistId?: string;
 }
 
-const EVENT_ICONS: Record<CatalystEventType, string> = {
-  earnings: '📊',
-  earnings_call: '📞',
-  ex_dividend: '💰',
-  dividend_payment: '💵',
-  stock_split: '➗',
-  reverse_split: '⚠️',
-  analyst_rating: '📈',
-  clinical_trial: '🧬',
-  fda_approval: '💊',
-  pdufa_date: '🗓️',
-  sec_filing: '📄',
-  insider_transaction: '👤',
-  executive_change: '👔',
-  acquisition: '🤝',
-  partnership: '🤝',
+// Helper functions to get icon and label from CATALYST_INFO
+const getEventIcon = (eventType: CatalystEventType): string => {
+  return CATALYST_INFO[eventType]?.icon || '📌';
 };
 
-const EVENT_LABELS: Record<CatalystEventType, string> = {
-  earnings: 'Earnings',
-  earnings_call: 'Earnings Call',
-  ex_dividend: 'Ex-Dividend',
-  dividend_payment: 'Dividend Payment',
-  stock_split: 'Stock Split',
-  reverse_split: 'Reverse Split',
-  analyst_rating: 'Analyst Rating',
-  clinical_trial: 'Clinical Trial',
-  fda_approval: 'FDA Approval',
-  pdufa_date: 'PDUFA Date',
-  sec_filing: 'SEC Filing',
-  insider_transaction: 'Insider Trade',
-  executive_change: 'Executive Change',
-  acquisition: 'Acquisition',
-  partnership: 'Partnership',
+const getEventLabel = (eventType: CatalystEventType): string => {
+  return CATALYST_INFO[eventType]?.label || eventType;
 };
 
-type CatalystFilter = 'earnings' | 'pdufa' | 'fda' | 'phase1' | 'phase2' | 'phase3' | 'dividends' | 'sec' | 'other';
+type CatalystFilter = 'earnings' | 'pdufa' | 'adcom' | 'fda_approval' | 'fda_rejection' | 'fda_designation' | 'nda_bla' | 'clinical' | 'readout' | 'dividends' | 'sec' | 'corporate';
 
-const FILTER_CONFIG: { key: CatalystFilter; label: string; icon: string; match: (e: CatalystEvent) => boolean }[] = [
-  { key: 'earnings', label: 'Earnings', icon: '📊', match: e => e.eventType === 'earnings' || e.eventType === 'earnings_call' },
-  { key: 'pdufa', label: 'PDUFA', icon: '🗓️', match: e => e.eventType === 'pdufa_date' },
-  { key: 'fda', label: 'FDA', icon: '💊', match: e => e.eventType === 'fda_approval' },
-  { key: 'phase1', label: 'Phase 1', icon: '🧬', match: e => e.eventType === 'clinical_trial' && (e.title.toLowerCase().includes('phase 1') || e.title.toLowerCase().includes('phase1') || e.trialPhases?.some(p => p.includes('1'))) },
-  { key: 'phase2', label: 'Phase 2', icon: '🧬', match: e => e.eventType === 'clinical_trial' && (e.title.toLowerCase().includes('phase 2') || e.title.toLowerCase().includes('phase2') || e.trialPhases?.some(p => p.includes('2'))) },
-  { key: 'phase3', label: 'Phase 3', icon: '🧬', match: e => e.eventType === 'clinical_trial' && (e.title.toLowerCase().includes('phase 3') || e.title.toLowerCase().includes('phase3') || e.trialPhases?.some(p => p.includes('3'))) },
-  { key: 'dividends', label: 'Dividends', icon: '💰', match: e => e.eventType === 'ex_dividend' || e.eventType === 'dividend_payment' },
-  { key: 'sec', label: 'SEC', icon: '📄', match: e => e.eventType === 'sec_filing' },
-  { key: 'other', label: 'Other', icon: '📌', match: e => ['analyst_rating', 'insider_transaction', 'executive_change', 'acquisition', 'partnership', 'stock_split', 'reverse_split'].includes(e.eventType) },
+const FILTER_CONFIG: { key: CatalystFilter; label: string; icon: string; category: string; match: (e: CatalystEvent) => boolean }[] = [
+  // Financial
+  { key: 'earnings', label: 'Earnings', icon: '📊', category: 'Financial', match: e => e.eventType === 'earnings' || e.eventType === 'earnings_call' },
+  { key: 'dividends', label: 'Dividends', icon: '💰', category: 'Financial', match: e => e.eventType === 'ex_dividend' || e.eventType === 'dividend_payment' },
+  // FDA/Regulatory
+  { key: 'pdufa', label: 'PDUFA Date', icon: '🗓️', category: 'FDA', match: e => e.eventType === 'pdufa_date' },
+  { key: 'adcom', label: 'AdCom Meeting', icon: '👥', category: 'FDA', match: e => e.eventType === 'adcom' },
+  { key: 'fda_approval', label: 'FDA Approval', icon: '✅', category: 'FDA', match: e => e.eventType === 'fda_approval' },
+  { key: 'fda_rejection', label: 'FDA Rejection', icon: '❌', category: 'FDA', match: e => e.eventType === 'fda_rejection' },
+  { key: 'fda_designation', label: 'FDA Designation', icon: '⭐', category: 'FDA', match: e => e.eventType === 'fda_designation' },
+  { key: 'nda_bla', label: 'NDA/BLA Filing', icon: '📝', category: 'FDA', match: e => e.eventType === 'nda_bla_submission' },
+  // Clinical Trials
+  { key: 'clinical', label: 'Clinical Trials', icon: '🧬', category: 'Clinical', match: e => e.eventType === 'clinical_trial' || e.eventType === 'clinical_milestone' },
+  { key: 'readout', label: 'Data Readouts', icon: '📊', category: 'Clinical', match: e => e.eventType === 'clinical_readout' },
+  // Corporate
+  { key: 'sec', label: 'SEC Filings', icon: '📄', category: 'Corporate', match: e => e.eventType === 'sec_filing' },
+  { key: 'corporate', label: 'Corporate Events', icon: '🏢', category: 'Corporate', match: e => ['analyst_rating', 'insider_transaction', 'executive_change', 'acquisition', 'partnership', 'stock_split', 'reverse_split'].includes(e.eventType) },
 ];
 
 function isFutureDate(dateStr: string): boolean {
@@ -87,7 +69,10 @@ export function CatalystsSection({ catalystEvents = [], currentSymbol, onSelectS
   const [selectedSource, setSelectedSource] = useState<string | null>(null);
   const [watchlistEvents, setWatchlistEvents] = useState<CatalystEvent[]>([]);
   const [loading, setLoading] = useState(false);
-  const [selectedFilters, setSelectedFilters] = useState<Set<CatalystFilter>>(new Set(['pdufa', 'phase2', 'phase3']));
+  // null means "all selected" (default state)
+  const [selectedFilters, setSelectedFilters] = useState<Set<CatalystFilter> | null>(null);
+  const [showFilterDropdown, setShowFilterDropdown] = useState(false);
+  const [showHelpModal, setShowHelpModal] = useState(false);
 
   const userWatchlists = watchlist.watchlists;
   const defaultWatchlists = watchlist.defaultWatchlists;
@@ -145,19 +130,33 @@ export function CatalystsSection({ catalystEvents = [], currentSymbol, onSelectS
       ? catalystEvents
       : watchlistEvents;
 
-  // Apply filter if any are selected, but fall back to all events if no matches
+  // Compute available filters based on what events exist
+  const availableFilters = FILTER_CONFIG.filter(filter => activeEvents.some(event => filter.match(event)));
+
+  // Apply filter - null means all selected (show everything)
   const getFilteredEvents = () => {
+    // null = all selected, show everything
+    if (selectedFilters === null) return activeEvents;
+    // empty set = nothing selected, also show everything (fallback)
     if (selectedFilters.size === 0) return activeEvents;
-    const filtered = activeEvents.filter(event =>
+    return activeEvents.filter(event =>
       FILTER_CONFIG.some(filter => selectedFilters.has(filter.key) && filter.match(event))
     );
-    // If selected filters don't match anything, show all events
-    return filtered.length > 0 ? filtered : activeEvents;
   };
   const filteredEvents = getFilteredEvents();
 
+  // Check if a filter is selected (null means all are selected)
+  const isFilterSelected = (filterKey: CatalystFilter) => {
+    return selectedFilters === null || selectedFilters.has(filterKey);
+  };
+
   const toggleFilter = (filterKey: CatalystFilter) => {
     setSelectedFilters(prev => {
+      // If null (all selected), create set with all EXCEPT the toggled one
+      if (prev === null) {
+        const allExceptOne = new Set(availableFilters.map(f => f.key).filter(k => k !== filterKey));
+        return allExceptOne;
+      }
       const next = new Set(prev);
       if (next.has(filterKey)) {
         next.delete(filterKey);
@@ -167,6 +166,8 @@ export function CatalystsSection({ catalystEvents = [], currentSymbol, onSelectS
       return next;
     });
   };
+
+  const selectAllFilters = () => setSelectedFilters(null);
 
   // Filter to only future events within 1 year and sort by date
   const oneYearFromNow = new Date();
@@ -210,15 +211,46 @@ export function CatalystsSection({ catalystEvents = [], currentSymbol, onSelectS
 
   // Generate summary from next upcoming event
   const summary = futureEvents.length > 0
-    ? `${EVENT_LABELS[futureEvents[0].eventType]} ${formatDate(futureEvents[0].date)}`
+    ? `${getEventLabel(futureEvents[0].eventType)} ${formatDate(futureEvents[0].date)}`
     : recentPastEvents.length > 0
       ? `${recentPastEvents.length} past event${recentPastEvents.length > 1 ? 's' : ''}`
       : undefined;
 
   const showWatchlistInEvents = isDirectWatchlistMode || selectedSource !== 'symbol';
 
+  // null means all selected, so allSelected = true
+  const allSelected = selectedFilters === null;
+  // Count how many are selected (for badge) - only show if not all selected
+  const selectedCount = selectedFilters === null ? availableFilters.length : selectedFilters.size;
+  const hasActiveFilters = !allSelected && selectedCount > 0 && selectedCount < availableFilters.length;
+
+  // Header has filter button (if multiple filters) and help button
+  const headerActions = (
+    <div className="catalyst-header-actions" onClick={e => e.stopPropagation()}>
+      {availableFilters.length > 1 && (
+        <button
+          className={`filter-icon-btn ${hasActiveFilters ? 'has-filters' : ''}`}
+          onClick={() => setShowFilterDropdown(!showFilterDropdown)}
+          title="Filter catalysts"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+            <line x1="2" y1="4" x2="14" y2="4" />
+            <line x1="4" y1="8" x2="12" y2="8" />
+            <line x1="6" y1="12" x2="10" y2="12" />
+          </svg>
+          {hasActiveFilters && (
+            <span className="filter-badge">{selectedCount}</span>
+          )}
+        </button>
+      )}
+      <button className="help-icon-btn" onClick={() => setShowHelpModal(true)} title="Learn about catalysts">
+        ?
+      </button>
+    </div>
+  );
+
   return (
-    <Expander title="Catalysts" summary={summary} defaultExpanded={defaultExpanded} ignoreMobileCollapse={!currentSymbol || isDirectWatchlistMode} className="calendar-section" loading={loading}>
+    <Expander title="Catalysts" summary={summary} defaultExpanded={defaultExpanded} ignoreMobileCollapse={!currentSymbol || isDirectWatchlistMode} className="calendar-section" loading={loading} headerRight={headerActions}>
       {!isDirectWatchlistMode && (hasWatchlists || currentSymbol) && (
         <div className="catalyst-source-selector">
           <select
@@ -249,24 +281,6 @@ export function CatalystsSection({ catalystEvents = [], currentSymbol, onSelectS
         </div>
       )}
 
-      {(() => {
-        const availableFilters = FILTER_CONFIG.filter(filter => activeEvents.some(event => filter.match(event)));
-        return availableFilters.length > 1 ? (
-          <div className="catalyst-filters">
-            {availableFilters.map(filter => (
-              <button
-                key={filter.key}
-                className={`filter-chip ${selectedFilters.has(filter.key) ? 'active' : ''}`}
-                onClick={() => toggleFilter(filter.key)}
-              >
-                <span className="filter-icon">{filter.icon}</span>
-                <span className="filter-label">{filter.label}</span>
-              </button>
-            ))}
-          </div>
-        ) : null;
-      })()}
-
       <div className="calendar-events">
         {futureEvents.length > 0 && (
           <>
@@ -274,7 +288,7 @@ export function CatalystsSection({ catalystEvents = [], currentSymbol, onSelectS
             {futureEvents.map(event => {
               const content = (
                 <>
-                  <span className="event-icon">{EVENT_ICONS[event.eventType]}</span>
+                  <span className="event-icon">{getEventIcon(event.eventType)}</span>
                   <div className="event-content">
                     <span className="event-label">
                       {showWatchlistInEvents && (
@@ -349,7 +363,7 @@ export function CatalystsSection({ catalystEvents = [], currentSymbol, onSelectS
             {recentPastEvents.map(event => {
               const content = (
                 <>
-                  <span className="event-icon">{EVENT_ICONS[event.eventType]}</span>
+                  <span className="event-icon">{getEventIcon(event.eventType)}</span>
                   <div className="event-content">
                     <span className="event-label">
                       {showWatchlistInEvents && (
@@ -389,6 +403,104 @@ export function CatalystsSection({ catalystEvents = [], currentSymbol, onSelectS
           </>
         )}
       </div>
+
+      {/* Filter Modal */}
+      <Dialog open={showFilterDropdown} onClose={() => setShowFilterDropdown(false)} title="Filter Events" size="large">
+        <div className="filter-modal-actions">
+          <button onClick={selectAllFilters} disabled={allSelected}>Select All</button>
+          <button onClick={() => setSelectedFilters(new Set())} disabled={selectedFilters !== null && selectedFilters.size === 0}>Clear All</button>
+        </div>
+        <div className="filter-modal-chips">
+          {availableFilters.map(filter => (
+            <button
+              key={filter.key}
+              className={`filter-chip ${isFilterSelected(filter.key) ? 'active' : ''}`}
+              onClick={() => toggleFilter(filter.key)}
+            >
+              <span className="filter-icon">{filter.icon}</span>
+              <span className="filter-label">{filter.label}</span>
+            </button>
+          ))}
+        </div>
+      </Dialog>
+
+      {/* Help Modal */}
+      <Dialog open={showHelpModal} onClose={() => setShowHelpModal(false)} title="Understanding Catalysts" size="large">
+        <HelpModalContent events={activeEvents} />
+      </Dialog>
     </Expander>
+  );
+}
+
+// Separate component to avoid recalculating on every render
+function HelpModalContent({ events }: { events: CatalystEvent[] }) {
+  const eventTypes = new Set(events.map(e => e.eventType));
+  const relevantCategories = CATALYST_CATEGORIES
+    .map(category => ({
+      ...category,
+      types: getCatalystsByCategory(category.id).filter(([type]) => eventTypes.has(type))
+    }))
+    .filter(category => category.types.length > 0);
+
+  // Check if we have any FDA/clinical events to show timeline
+  const hasBiotechEvents = eventTypes.has('clinical_trial') || eventTypes.has('clinical_readout') ||
+    eventTypes.has('pdufa_date') || eventTypes.has('adcom') || eventTypes.has('fda_approval') ||
+    eventTypes.has('fda_rejection') || eventTypes.has('nda_bla_submission') || eventTypes.has('fda_designation') ||
+    eventTypes.has('clinical_milestone');
+
+  return (
+    <div className="help-modal-content">
+      {/* Drug Development Timeline for biotech stocks */}
+      {hasBiotechEvents && (
+        <div className="help-category">
+          <h4>Drug Development Timeline</h4>
+          <p className="help-category-desc">The typical path from clinical trials to FDA approval. Each stage is a potential catalyst.</p>
+          <div className="help-timeline">
+            {DRUG_DEVELOPMENT_TIMELINE.map((step, index) => {
+              const info = CATALYST_INFO[step.eventType];
+              return (
+                <div key={`${step.eventType}-${step.stage}`} className="timeline-step">
+                  <div className="timeline-connector">
+                    <div className="timeline-dot" />
+                    {index < DRUG_DEVELOPMENT_TIMELINE.length - 1 && <div className="timeline-line" />}
+                  </div>
+                  <div className="timeline-content">
+                    <div className="timeline-header">
+                      <span className="timeline-icon">{info.icon}</span>
+                      <span className="timeline-stage">{step.stage}</span>
+                      {step.successRate && <span className="timeline-rate">{step.successRate}</span>}
+                      {step.duration && <span className="timeline-duration">{step.duration}</span>}
+                    </div>
+                    <p className="timeline-desc">{step.description || info.description}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Regular categories (Financial, Corporate) */}
+      {relevantCategories
+        .filter(c => c.id !== 'fda' && c.id !== 'clinical')
+        .map(category => (
+        <div key={category.id} className="help-category">
+          <h4>{category.name}</h4>
+          <p className="help-category-desc">{category.description}</p>
+          <div className="help-items">
+            {category.types.map(([type, info]) => (
+              <div key={type} className="help-item">
+                <div className="help-item-header">
+                  <span className="help-item-icon">{info.icon}</span>
+                  <span className="help-item-label">{info.label}</span>
+                </div>
+                <p className="help-item-what">{info.description}</p>
+                <p className="help-item-why">{info.whyItMatters}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
   );
 }

@@ -35,6 +35,7 @@ export class ChecklistService {
   }
 
   async generateChecklist(symbol: string, options: { skipCache?: boolean; ttl?: number } = {}): Promise<ChecklistResult> {
+    const startTime = Date.now();
     const { ttl } = options;
     const upperSymbol = symbol.toUpperCase();
     // Cache disabled for symbol lookups - always fetch fresh data
@@ -46,12 +47,10 @@ export class ChecklistService {
     let daysBelow1Dollar: number | null = null;
 
     try {
-      console.log(`[ChecklistService] Fetching stock data for ${upperSymbol}...`);
       const stockData = await yahooFinance.getStockData(upperSymbol);
       marketData = stockData.marketData;
       fundamentalData = stockData.fundamentalData;
       shortInterestData = stockData.shortInterestData;
-      console.log(`[ChecklistService] Stock data received for ${upperSymbol}`);
     } catch (error) {
       console.error(`[ChecklistService] Stock data error:`, error);
       errors.push(`Stock data unavailable: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -110,9 +109,11 @@ export class ChecklistService {
       news = newsResult.value;
     }
     let secLastFetchedDate: string | null = null;
+    let cik: string | null = null;
     if (catalystResult.status === 'fulfilled') {
       catalystEvents = catalystResult.value.events;
       secLastFetchedDate = catalystResult.value.secLastFetchedDate;
+      cik = catalystResult.value.cik;
     }
     if (analystResult.status === 'fulfilled') {
       analystData = analystResult.value;
@@ -204,6 +205,7 @@ export class ChecklistService {
       earningsPerformance,
       fdaHistory,
       secLastFetchedDate: secLastFetchedDate || undefined,
+      cik: cik || undefined,
     };
 
     // Cache the result if no errors
@@ -211,6 +213,7 @@ export class ChecklistService {
       await setCache(cacheKey('checklist', upperSymbol), result, ttl);
     }
 
+    console.log(`[ChecklistService] ${upperSymbol} completed in ${Date.now() - startTime}ms`);
     return result;
   }
 

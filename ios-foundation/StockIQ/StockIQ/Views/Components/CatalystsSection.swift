@@ -7,51 +7,63 @@ import SwiftUI
 
 enum CatalystFilter: String, CaseIterable, Identifiable {
     case earnings
-    case pdufa
-    case fda
-    case phase1
-    case phase2
-    case phase3
     case dividends
+    case pdufa
+    case adcom
+    case fdaApproval
+    case fdaRejection
+    case fdaDesignation
+    case ndaBla
+    case clinical
+    case readout
     case sec
-    case other
+    case corporate
 
     var id: String { rawValue }
 
     var label: String {
         switch self {
         case .earnings: return "Earnings"
-        case .pdufa: return "PDUFA"
-        case .fda: return "FDA"
-        case .phase1: return "Phase 1"
-        case .phase2: return "Phase 2"
-        case .phase3: return "Phase 3"
         case .dividends: return "Dividends"
-        case .sec: return "SEC"
-        case .other: return "Other"
+        case .pdufa: return "PDUFA Date"
+        case .adcom: return "AdCom"
+        case .fdaApproval: return "FDA Approval"
+        case .fdaRejection: return "FDA Rejection"
+        case .fdaDesignation: return "FDA Designation"
+        case .ndaBla: return "NDA/BLA"
+        case .clinical: return "Clinical Trials"
+        case .readout: return "Data Readouts"
+        case .sec: return "SEC Filings"
+        case .corporate: return "Corporate"
         }
     }
 
     var icon: String {
         switch self {
         case .earnings: return "chart.bar.fill"
-        case .pdufa: return "calendar"
-        case .fda: return "checkmark.seal.fill"
-        case .phase1, .phase2, .phase3: return "cross.case.fill"
         case .dividends: return "dollarsign.circle.fill"
+        case .pdufa: return "calendar"
+        case .adcom: return "person.3.fill"
+        case .fdaApproval: return "checkmark.seal.fill"
+        case .fdaRejection: return "xmark.seal.fill"
+        case .fdaDesignation: return "star.fill"
+        case .ndaBla: return "doc.badge.arrow.up.fill"
+        case .clinical: return "cross.case.fill"
+        case .readout: return "chart.line.uptrend.xyaxis"
         case .sec: return "doc.text.fill"
-        case .other: return "pin.fill"
+        case .corporate: return "building.2.fill"
         }
     }
 
     var color: Color {
         switch self {
         case .earnings: return .blue
-        case .pdufa, .fda: return .pink
-        case .phase1, .phase2, .phase3: return .purple
         case .dividends: return .green
+        case .pdufa, .adcom, .fdaApproval, .fdaDesignation, .ndaBla: return .pink
+        case .fdaRejection: return .red
+        case .clinical, .readout: return .purple
         case .sec: return .secondary
-        case .other: return .orange
+        case .corporate: return .orange
         }
     }
 
@@ -59,23 +71,29 @@ enum CatalystFilter: String, CaseIterable, Identifiable {
         switch self {
         case .earnings:
             return event.eventType == .earnings || event.eventType == .earningsCall
-        case .pdufa:
-            return event.eventType == .pdufaDate
-        case .fda:
-            return event.eventType == .fdaApproval
-        case .phase1:
-            return event.eventType == .clinicalTrial && event.title.contains("Phase 1")
-        case .phase2:
-            return event.eventType == .clinicalTrial && event.title.contains("Phase 2")
-        case .phase3:
-            return event.eventType == .clinicalTrial && event.title.contains("Phase 3")
         case .dividends:
             return event.eventType == .exDividend || event.eventType == .dividendPayment
+        case .pdufa:
+            return event.eventType == .pdufaDate
+        case .adcom:
+            return event.eventType == .adcom
+        case .fdaApproval:
+            return event.eventType == .fdaApproval
+        case .fdaRejection:
+            return event.eventType == .fdaRejection
+        case .fdaDesignation:
+            return event.eventType == .fdaDesignation
+        case .ndaBla:
+            return event.eventType == .ndaBlaSubmission
+        case .clinical:
+            return event.eventType == .clinicalTrial || event.eventType == .clinicalMilestone
+        case .readout:
+            return event.eventType == .clinicalReadout
         case .sec:
             return event.eventType == .secFiling
-        case .other:
-            let otherTypes: [CatalystEventType] = [.analystRating, .insiderTransaction, .executiveChange, .acquisition, .partnership, .stockSplit, .reverseSplit]
-            return otherTypes.contains(event.eventType)
+        case .corporate:
+            let types: [CatalystEventType] = [.analystRating, .insiderTransaction, .executiveChange, .acquisition, .partnership, .stockSplit, .reverseSplit]
+            return types.contains(event.eventType)
         }
     }
 }
@@ -84,11 +102,13 @@ struct CatalystsSection: View {
     let catalystEvents: [CatalystEvent]
     var currentSymbol: String? = nil
     var embedded: Bool = false
+    var onSelectSymbol: ((String) -> Void)? = nil
 
     @State private var isExpanded = true
     @State private var selectedFilters: Set<CatalystFilter>? = nil
     @State private var selectedSegment: CatalystSegment = .upcoming
     @State private var showFilterSheet = false
+    @State private var showHelpSheet = false
 
     private enum CatalystSegment: String, CaseIterable {
         case upcoming = "Upcoming"
@@ -99,6 +119,10 @@ struct CatalystsSection: View {
         CatalystFilter.allCases.filter { filter in
             catalystEvents.contains { filter.matches($0) }
         }
+    }
+
+    private var relevantEventTypes: Set<CatalystEventType> {
+        Set(catalystEvents.map { $0.eventType })
     }
 
     private var activeFilterCount: Int {
@@ -186,17 +210,25 @@ struct CatalystsSection: View {
                         .foregroundStyle(activeFilterCount > 0 ? .blue : .secondary)
                     }
                 }
+
+                // Help button
+                Button {
+                    showHelpSheet = true
+                } label: {
+                    Image(systemName: "questionmark.circle")
+                        .foregroundStyle(.secondary)
+                }
             }
             .padding(.top, embedded ? 0 : 4)
 
             // Show selected segment's events (or the only available one)
             if selectedSegment == .upcoming && !futureEvents.isEmpty || recentPastEvents.isEmpty {
                 ForEach(futureEvents) { event in
-                    CatalystEventRowLink(event: event, showSymbol: currentSymbol == nil)
+                    CatalystEventRowLink(event: event, showSymbol: currentSymbol == nil, onSelectSymbol: onSelectSymbol)
                 }
             } else {
                 ForEach(recentPastEvents) { event in
-                    CatalystEventRowLink(event: event, showSymbol: currentSymbol == nil, isPast: true)
+                    CatalystEventRowLink(event: event, showSymbol: currentSymbol == nil, isPast: true, onSelectSymbol: onSelectSymbol)
                 }
             }
         }
@@ -210,7 +242,7 @@ struct CatalystsSection: View {
                 selectedFilters = newFilters
             }
         )
-        .presentationDetents([.medium])
+        .presentationDetents([.height(CGFloat(56 + availableFilters.count * 48 + 220))])
     }
 
     var body: some View {
@@ -220,6 +252,9 @@ struct CatalystsSection: View {
             catalystContent
                 .sheet(isPresented: $showFilterSheet) {
                     filterSheet
+                }
+                .sheet(isPresented: $showHelpSheet) {
+                    CatalystHelpSheet(relevantEventTypes: relevantEventTypes)
                 }
         } else {
             DisclosureGroup(isExpanded: $isExpanded) {
@@ -246,6 +281,9 @@ struct CatalystsSection: View {
             .padding(.horizontal)
             .sheet(isPresented: $showFilterSheet) {
                 filterSheet
+            }
+            .sheet(isPresented: $showHelpSheet) {
+                CatalystHelpSheet(relevantEventTypes: relevantEventTypes)
             }
         }
     }
@@ -369,6 +407,7 @@ private struct CatalystEventRowLink: View {
     let event: CatalystEvent
     var showSymbol: Bool = false
     var isPast: Bool = false
+    var onSelectSymbol: ((String) -> Void)? = nil
     @Environment(\.openURL) private var openURL
 
     var body: some View {
@@ -376,11 +415,11 @@ private struct CatalystEventRowLink: View {
             Button {
                 openURL(url)
             } label: {
-                CatalystEventRow(event: event, showSymbol: showSymbol, isPast: isPast, hasLink: true)
+                CatalystEventRow(event: event, showSymbol: showSymbol, isPast: isPast, hasLink: true, onSelectSymbol: onSelectSymbol)
             }
             .buttonStyle(.plain)
         } else {
-            CatalystEventRow(event: event, showSymbol: showSymbol, isPast: isPast, hasLink: false)
+            CatalystEventRow(event: event, showSymbol: showSymbol, isPast: isPast, hasLink: false, onSelectSymbol: onSelectSymbol)
         }
     }
 }
@@ -392,6 +431,7 @@ private struct CatalystEventRow: View {
     var showSymbol: Bool = false
     var isPast: Bool = false
     var hasLink: Bool = false
+    var onSelectSymbol: ((String) -> Void)? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -404,10 +444,15 @@ private struct CatalystEventRow: View {
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 4) {
                         if showSymbol {
-                            Text(event.symbol)
-                                .font(.subheadline)
-                                .fontWeight(.semibold)
-                                .foregroundStyle(.blue)
+                            Button {
+                                onSelectSymbol?(event.symbol)
+                            } label: {
+                                Text(event.symbol)
+                                    .font(.subheadline)
+                                    .fontWeight(.semibold)
+                                    .foregroundStyle(.blue)
+                            }
+                            .buttonStyle(.plain)
                         }
                         Text(event.title)
                             .font(.subheadline)
@@ -537,6 +582,211 @@ private struct EarningsQuarterBadge: View {
         }
         let prefix = rounded > 0 ? "+" : ""
         return "\(prefix)\(Int(rounded))%"
+    }
+}
+
+// MARK: - Catalyst Help Sheet
+
+struct CatalystHelpSheet: View {
+    let relevantEventTypes: Set<CatalystEventType>
+
+    @Environment(\.dismiss) private var dismiss
+    @Environment(APIClient.self) private var api
+    @State private var catalystInfo: CatalystInfoResponse?
+    @State private var isLoading = true
+    @State private var error: String?
+
+    // Static cache - fetched once per app session
+    private static var cachedInfo: CatalystInfoResponse?
+
+    var body: some View {
+        NavigationStack {
+            Group {
+                if isLoading {
+                    ProgressView()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if let error = error {
+                    ContentUnavailableView(
+                        "Unable to Load",
+                        systemImage: "exclamationmark.triangle",
+                        description: Text(error)
+                    )
+                } else if let info = catalystInfo {
+                    // Filter to only show relevant categories and event types
+                    let relevantCategories = info.categories.compactMap { category -> (CatalystCategoryInfo, [(CatalystEventType, CatalystTypeInfo)])? in
+                        let types = info.eventTypes(for: category.id).filter { relevantEventTypes.contains($0.0) }
+                        return types.isEmpty ? nil : (category, types)
+                    }
+
+                    // Check if we have any FDA/clinical events to show timeline
+                    let hasBiotechEvents = relevantEventTypes.contains { type in
+                        [.clinicalTrial, .clinicalReadout, .clinicalMilestone, .pdufaDate, .adcom,
+                         .fdaApproval, .fdaRejection, .ndaBlaSubmission, .fdaDesignation].contains(type)
+                    }
+
+                    // Get full timeline with info
+                    let timelineSteps: [(TimelineStep, CatalystTypeInfo)] = info.timeline.compactMap { step in
+                        guard let eventType = CatalystEventType(rawValue: step.eventType),
+                              let typeInfo = info.info(for: eventType) else { return nil }
+                        return (step, typeInfo)
+                    }
+
+                    List {
+                        // Drug Development Timeline (only for biotech stocks)
+                        if hasBiotechEvents {
+                            Section {
+                                Text("The typical path from clinical trials to FDA approval. Success rates are historical averages.")
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
+                                    .listRowBackground(Color.clear)
+                                    .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 8, trailing: 16))
+
+                                ForEach(Array(timelineSteps.enumerated()), id: \.offset) { index, item in
+                                    let (step, typeInfo) = item
+                                    TimelineStepRow(
+                                        step: step,
+                                        info: typeInfo,
+                                        stepNumber: index + 1,
+                                        isLast: index == timelineSteps.count - 1
+                                    )
+                                }
+                            } header: {
+                                Text("Drug Development Timeline")
+                            }
+                        }
+
+                        ForEach(relevantCategories, id: \.0.id) { category, types in
+                            Section {
+                                ForEach(types, id: \.0) { eventType, typeInfo in
+                                    VStack(alignment: .leading, spacing: 6) {
+                                        HStack(spacing: 8) {
+                                            Image(systemName: eventType.icon)
+                                                .foregroundStyle(eventType.color)
+                                                .frame(width: 20)
+                                            Text(typeInfo.label)
+                                                .font(.subheadline)
+                                                .fontWeight(.semibold)
+                                        }
+                                        Text(typeInfo.description)
+                                            .font(.footnote)
+                                            .foregroundStyle(.blue)
+                                        Text(typeInfo.whyItMatters)
+                                            .font(.footnote)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    .padding(.vertical, 4)
+                                }
+                            } header: {
+                                Text(category.name)
+                            } footer: {
+                                Text(category.description)
+                                    .font(.footnote)
+                            }
+                        }
+                    }
+                    .listStyle(.insetGrouped)
+                }
+            }
+            .navigationTitle("Understanding Catalysts")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Done") {
+                        dismiss()
+                    }
+                }
+            }
+        }
+        .task {
+            await loadCatalystInfo()
+        }
+    }
+
+    private func loadCatalystInfo() async {
+        // Use cache if available
+        if let cached = Self.cachedInfo {
+            catalystInfo = cached
+            isLoading = false
+            return
+        }
+
+        do {
+            let info = try await api.getCatalystInfo()
+            Self.cachedInfo = info
+            catalystInfo = info
+            isLoading = false
+        } catch {
+            self.error = error.localizedDescription
+            isLoading = false
+        }
+    }
+}
+
+// MARK: - Timeline Step Row
+
+private struct TimelineStepRow: View {
+    let step: TimelineStep
+    let info: CatalystTypeInfo
+    let stepNumber: Int
+    let isLast: Bool
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            // Step indicator
+            VStack(spacing: 0) {
+                ZStack {
+                    Circle()
+                        .fill(Color.accentColor)
+                        .frame(width: 24, height: 24)
+                    Text("\(stepNumber)")
+                        .font(.caption2)
+                        .fontWeight(.bold)
+                        .foregroundStyle(.white)
+                }
+
+                if !isLast {
+                    Rectangle()
+                        .fill(Color(.separator))
+                        .frame(width: 2)
+                        .frame(maxHeight: .infinity)
+                }
+            }
+            .frame(width: 24)
+
+            // Content
+            VStack(alignment: .leading, spacing: 6) {
+                // Stage name with badges
+                HStack(spacing: 6) {
+                    Text(step.stage)
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+
+                    if let successRate = step.successRate {
+                        Text(successRate)
+                            .font(.caption2)
+                            .fontWeight(.medium)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color.green.opacity(0.15))
+                            .foregroundStyle(.green)
+                            .clipShape(Capsule())
+                    }
+
+                    if let duration = step.duration {
+                        Text(duration)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                // Description
+                Text(step.description ?? info.description)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.bottom, isLast ? 0 : 12)
+        }
+        .padding(.vertical, 4)
     }
 }
 

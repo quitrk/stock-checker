@@ -22,7 +22,7 @@ export function ConfirmDialog({
   onCancel,
 }: ConfirmDialogProps) {
   return (
-    <Dialog open={open} onClose={onCancel} title={title}>
+    <Dialog open={open} onClose={onCancel} title={title} showCloseButton={false}>
       <p className="confirm-dialog-message">{message}</p>
       <DialogActions>
         <Button variant="secondary" onClick={onCancel}>{cancelLabel}</Button>

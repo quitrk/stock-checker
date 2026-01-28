@@ -41,7 +41,8 @@ export function Expander({
 
   const handleClick = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
-    if (!target.closest('.expander-content')) {
+    // Don't toggle if clicking inside content or header-right (action buttons)
+    if (!target.closest('.expander-content') && !target.closest('.expander-header-right')) {
       setExpanded(!expanded);
     }
   };

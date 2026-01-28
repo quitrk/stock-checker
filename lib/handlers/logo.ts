@@ -18,7 +18,6 @@ export async function fetchLogo(symbol: string): Promise<LogoResult | null> {
   // Check cache first
   const cached = await getCached<CachedLogo>(logoCacheKey);
   if (cached) {
-    console.log(`[Logo] Cache hit for ${upperSymbol}`);
     return {
       buffer: Buffer.from(cached.data, 'base64'),
       contentType: cached.contentType,

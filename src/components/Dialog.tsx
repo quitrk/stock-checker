@@ -7,6 +7,8 @@ interface DialogProps {
   title: string;
   children: React.ReactNode;
   disabled?: boolean; // Prevent closing when loading
+  size?: 'small' | 'medium' | 'large'; // large = full screen on mobile
+  showCloseButton?: boolean; // Show X button (default true, set false if using cancel button)
 }
 
 export function Dialog({
@@ -15,6 +17,8 @@ export function Dialog({
   title,
   children,
   disabled = false,
+  size = 'medium',
+  showCloseButton = true,
 }: DialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
 
@@ -36,9 +40,16 @@ export function Dialog({
   };
 
   return (
-    <dialog ref={dialogRef} className="dialog" onClick={handleBackdropClick}>
+    <dialog ref={dialogRef} className={`dialog dialog-${size}`} onClick={handleBackdropClick}>
       <div className="dialog-content">
-        <h3 className="dialog-title">{title}</h3>
+        <div className="dialog-header">
+          <h3 className="dialog-title">{title}</h3>
+          {showCloseButton && (
+            <button className="dialog-close" onClick={onClose} disabled={disabled} aria-label="Close">
+              ×
+            </button>
+          )}
+        </div>
         {children}
       </div>
     </dialog>

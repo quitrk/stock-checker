@@ -5,6 +5,7 @@ import authRoutes from './lib/routes/auth.js';
 import checklistRoutes from './lib/routes/checklist.js';
 import watchlistRoutes from './lib/routes/watchlist.js';
 import logoRoutes from './lib/routes/logo.js';
+import catalystsRoutes from './lib/routes/catalysts.js';
 
 const app = new Hono();
 
@@ -20,5 +21,6 @@ app.route('/api/auth', authRoutes);
 app.route('/api/checklist', checklistRoutes);
 app.route('/api/watchlist', watchlistRoutes);
 app.route('/api/logo', logoRoutes);
+app.route('/api/catalysts', catalystsRoutes);
 
 export default app;

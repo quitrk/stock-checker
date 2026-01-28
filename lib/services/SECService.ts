@@ -16,6 +16,7 @@ interface ExtractedCatalyst {
 export interface SECCatalystResult {
   events: CatalystEvent[];
   secLastFetchedDate: string | null;
+  cik: string | null;
 }
 
 interface SECSubmissionResponse {
@@ -483,7 +484,7 @@ export class SECService {
    * Uses static cache so it's shared across all instances.
    */
   private async loadTickerMapping(): Promise<Map<string, string>> {
-    // Return cached mapping if available
+    // Return in-memory cache if available
     if (SECService.tickerToCIK) {
       return SECService.tickerToCIK;
     }
@@ -495,7 +496,20 @@ export class SECService {
 
     // Start loading
     SECService.tickerCachePromise = (async () => {
-      console.log('[SECService] Loading SEC ticker mapping...');
+      const redisCacheKey = cacheKey('sec', 'ticker-cik-mapping');
+      const oneWeekSeconds = 7 * 24 * 60 * 60;
+
+      // Check Redis cache first
+      const cached = await getCached<Record<string, string>>(redisCacheKey);
+      if (cached) {
+        console.log(`[SECService] Loaded ${Object.keys(cached).length} ticker → CIK mappings from cache`);
+        const mapping = new Map(Object.entries(cached));
+        SECService.tickerToCIK = mapping;
+        return mapping;
+      }
+
+      // Fetch from SEC
+      console.log('[SECService] Fetching SEC ticker mapping...');
       const tickerResponse = await fetch(
         'https://www.sec.gov/files/company_tickers.json',
         { headers: { 'User-Agent': this.userAgent } }
@@ -513,7 +527,11 @@ export class SECService {
         mapping.set(entry.ticker.toUpperCase(), cik);
       }
 
-      console.log(`[SECService] Loaded ${mapping.size} ticker → CIK mappings`);
+      console.log(`[SECService] Loaded ${mapping.size} ticker → CIK mappings from SEC`);
+
+      // Cache to Redis for 1 week
+      await setCache(redisCacheKey, Object.fromEntries(mapping), oneWeekSeconds);
+
       SECService.tickerToCIK = mapping;
       return mapping;
     })();
@@ -522,12 +540,20 @@ export class SECService {
   }
 
   async getCIK(symbol: string): Promise<string | null> {
+    const upperSymbol = symbol.toUpperCase();
+
     try {
+      // Check cached ChecklistResult first
+      const cached = await getCached<ChecklistResult>(cacheKey('checklist', upperSymbol));
+      if (cached?.cik) {
+        return cached.cik;
+      }
+
+      // Fall back to full ticker mapping
       const mapping = await this.loadTickerMapping();
-      const cik = mapping.get(symbol.toUpperCase());
+      const cik = mapping.get(upperSymbol);
 
       if (cik) {
-        console.log(`[SECService] Found CIK ${cik} for ${symbol}`);
         return cik;
       }
 
@@ -639,8 +665,8 @@ export class SECService {
       .filter(e => e.source === 'sec');
     const seenIds = new Set(events.map(e => e.id));
 
-    // Track the latest filing date we process (preserve cached date as baseline)
-    let newLatestFilingDate: string | null = secLastFetchedDate;
+    // Today's date - after successful fetch, we've retrieved everything up to now
+    const today = new Date().toISOString().split('T')[0];
 
     try {
       // Determine lookback date: use cached date or 1 year ago
@@ -655,7 +681,7 @@ export class SECService {
       const cik = await this.getCIK(symbol);
       if (!cik) {
         console.log(`[SECService] Could not find CIK for ${symbol}`);
-        return { events, secLastFetchedDate: newLatestFilingDate };
+        return { events, secLastFetchedDate, cik: null };
       }
 
       const response = await this.rateLimitedFetch(
@@ -664,13 +690,13 @@ export class SECService {
 
       if (!response.ok) {
         console.error(`[SECService] Failed to fetch filings for ${symbol}`);
-        return { events, secLastFetchedDate: newLatestFilingDate };
+        return { events, secLastFetchedDate, cik };
       }
 
       const data = (await response.json()) as SECSubmissionResponse;
       const filings = data.filings?.recent;
 
-      if (!filings) return { events, secLastFetchedDate: newLatestFilingDate };
+      if (!filings) return { events, secLastFetchedDate: today, cik };
 
       for (let i = 0; i < Math.min(filings.form.length, 100); i++) {
         const form = filings.form[i];
@@ -683,10 +709,6 @@ export class SECService {
         if (secLastFetchedDate && date <= secLastFetchedDate) continue;
         if (date < oneYearAgoStr) continue;
 
-        // Track latest date
-        if (!newLatestFilingDate || date > newLatestFilingDate) {
-          newLatestFilingDate = date;
-        }
 
         const accessionNoDashes = accessionNumber?.replace(/-/g, '');
         const sourceUrl = accessionNoDashes
@@ -768,11 +790,11 @@ export class SECService {
       }
 
       console.log(`[SECService] ${symbol}: found ${events.length} total catalyst events (biotech: ${isBiotech})`);
-      return { events, secLastFetchedDate: newLatestFilingDate };
+      return { events, secLastFetchedDate: today, cik };
     } catch (error) {
       console.error(`[SECService] Error getting catalyst events for ${symbol}:`, error);
       console.log(`[SECService] ${symbol}: returning ${events.length} cached events due to error`);
-      return { events, secLastFetchedDate: newLatestFilingDate };
+      return { events, secLastFetchedDate, cik: cached?.cik || null };
     }
   }
 }

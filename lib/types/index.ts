@@ -169,4 +169,5 @@ export interface ChecklistResult {
   earningsPerformance: EarningsPerformance | null;
   fdaHistory: FDAHistory | null;
   secLastFetchedDate?: string; // YYYY-MM-DD of most recent SEC filing processed
+  cik?: string; // SEC Central Index Key
 }

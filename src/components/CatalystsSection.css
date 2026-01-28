@@ -59,45 +59,6 @@ button.event-symbol:hover {
   color: var(--card-bg, #1a1a2e);
 }
 
-.catalyst-filters {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-bottom: 0.75rem;
-}
-
-.filter-chip {
-  display: flex;
-  align-items: center;
-  gap: 0.3rem;
-  padding: 0.35rem 0.6rem;
-  background: var(--card-bg-secondary, rgba(255, 255, 255, 0.05));
-  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
-  border-radius: 16px;
-  color: var(--text-secondary, #888);
-  font-size: 0.75rem;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.filter-chip:hover {
-  background: var(--card-bg-hover, rgba(255, 255, 255, 0.1));
-  color: var(--text-primary, #fff);
-}
-
-.filter-chip.active {
-  background: var(--accent-bg, rgba(74, 158, 255, 0.15));
-  border-color: var(--accent-color, #4a9eff);
-  color: var(--accent-color, #4a9eff);
-}
-
-.filter-icon {
-  font-size: 0.85rem;
-}
-
-.filter-label {
-  font-weight: 500;
-}
 
 .calendar-events {
   display: flex;
@@ -246,6 +207,302 @@ a.calendar-event:hover {
   text-transform: uppercase;
 }
 
+/* Header actions (filter + help buttons) */
+.catalyst-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.filter-icon-btn,
+.help-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: var(--text-secondary, #888);
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  position: relative;
+}
+
+.filter-icon-btn:hover,
+.help-icon-btn:hover {
+  background: var(--card-bg-hover, rgba(255, 255, 255, 0.1));
+  color: var(--text-primary, #fff);
+}
+
+.filter-icon-btn.has-filters {
+  color: var(--accent-color, #4a9eff);
+}
+
+.help-icon-btn {
+  font-weight: 600;
+  font-size: 0.8rem;
+}
+
+.filter-badge {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  background: var(--accent-color, #4a9eff);
+  color: var(--card-bg, #1a1a2e);
+  border-radius: 7px;
+  font-size: 0.6rem;
+  font-weight: 700;
+}
+
+/* Filter Modal Content */
+
+.filter-modal-actions {
+  display: flex;
+  gap: 0.5rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
+}
+
+.filter-modal-actions button {
+  flex: 1;
+  padding: 0.4rem 0.75rem;
+  background: var(--card-bg-secondary, rgba(255, 255, 255, 0.05));
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
+  border-radius: 6px;
+  color: var(--text-secondary, #888);
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.filter-modal-actions button:hover:not(:disabled) {
+  background: var(--card-bg-hover, rgba(255, 255, 255, 0.1));
+  color: var(--text-primary, #fff);
+}
+
+.filter-modal-actions button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.filter-modal-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding-top: 0.5rem;
+}
+
+@media (max-width: 768px) {
+  .filter-modal-chips {
+    flex: 1;
+    overflow-y: auto;
+    align-content: flex-start;
+  }
+}
+
+/* Filter chips (used in modal) */
+.filter-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.4rem 0.7rem;
+  background: var(--card-bg-secondary, rgba(255, 255, 255, 0.05));
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
+  border-radius: 16px;
+  color: var(--text-secondary, #888);
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.filter-chip:hover {
+  background: var(--card-bg-hover, rgba(255, 255, 255, 0.1));
+  color: var(--text-primary, #fff);
+}
+
+.filter-chip.active {
+  background: var(--accent-bg, rgba(74, 158, 255, 0.15));
+  border-color: var(--accent-color, #4a9eff);
+  color: var(--accent-color, #4a9eff);
+}
+
+.filter-icon {
+  font-size: 0.9rem;
+}
+
+.filter-label {
+  font-weight: 500;
+}
+
+/* Help Modal Content */
+.help-modal-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+@media (max-width: 768px) {
+  .help-modal-content {
+    max-height: none;
+    flex: 1;
+  }
+}
+
+.help-category h4 {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.95rem;
+  color: var(--text-primary, #fff);
+}
+
+.help-category-desc {
+  margin: 0 0 0.75rem 0;
+  font-size: 0.8rem;
+  color: var(--text-secondary, #888);
+  line-height: 1.4;
+}
+
+.help-items {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.help-item {
+  padding: 0.75rem;
+  background: var(--card-bg-secondary, rgba(255, 255, 255, 0.03));
+  border-radius: 6px;
+}
+
+.help-item-header {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.4rem;
+}
+
+.help-item-icon {
+  font-size: 1rem;
+}
+
+.help-item-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary, #fff);
+}
+
+.help-item-what {
+  margin: 0 0 0.3rem 0;
+  font-size: 0.8rem;
+  color: var(--accent-color, #4a9eff);
+}
+
+.help-item-why {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--text-secondary, #888);
+  line-height: 1.5;
+}
+
+/* Drug Development Timeline */
+.help-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin-top: 0.75rem;
+}
+
+.timeline-step {
+  display: flex;
+  gap: 1rem;
+}
+
+.timeline-connector {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 20px;
+  flex-shrink: 0;
+}
+
+.timeline-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--accent-color, #4a9eff);
+  flex-shrink: 0;
+}
+
+.timeline-line {
+  width: 2px;
+  flex: 1;
+  background: var(--border-color, rgba(255, 255, 255, 0.15));
+  min-height: 20px;
+}
+
+.timeline-content {
+  flex: 1;
+  padding-bottom: 1.25rem;
+}
+
+.timeline-step:last-child .timeline-content {
+  padding-bottom: 0;
+}
+
+.timeline-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.4rem;
+}
+
+.timeline-icon {
+  font-size: 1rem;
+}
+
+.timeline-stage {
+  font-weight: 600;
+  color: var(--text-primary, #fff);
+  font-size: 0.9rem;
+}
+
+.timeline-rate {
+  font-size: 0.75rem;
+  padding: 0.15rem 0.4rem;
+  background: rgba(74, 158, 255, 0.15);
+  color: var(--accent-color, #4a9eff);
+  border-radius: 4px;
+}
+
+.timeline-duration {
+  font-size: 0.75rem;
+  color: var(--text-secondary, #666);
+}
+
+.timeline-desc {
+  margin: 0 0 0.2rem 0;
+  font-size: 0.7rem;
+  color: var(--accent-color, #4a9eff);
+}
+
+.timeline-why {
+  margin: 0;
+  font-size: 0.7rem;
+  color: var(--text-secondary, #888);
+  line-height: 1.4;
+}
+
 @media (max-width: 768px) {
   .calendar-event {
     padding: 0.5rem 0.6rem;
@@ -253,5 +510,9 @@ a.calendar-event:hover {
 
   .event-description {
     display: none;
+  }
+
+  .learn-catalysts-content {
+    max-height: 300px;
   }
 }

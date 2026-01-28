@@ -6,8 +6,6 @@ const logo = new Hono();
 // GET /api/logo/:symbol - Proxy logo from LogoKit
 logo.get('/:symbol', async (c) => {
   const symbol = c.req.param('symbol');
-  console.log(`[Logo Route] Fetching logo for: ${symbol}`);
-
   const result = await fetchLogo(symbol);
 
   if (!result) {
