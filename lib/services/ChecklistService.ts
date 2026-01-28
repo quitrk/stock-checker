@@ -224,7 +224,7 @@ export class ChecklistService {
       const volumeRatio = marketData.volume / volumeAnalysis.medianVolume;
       items.push({
         id: 'volume_vs_median',
-        label: 'Volume vs 90-Day Median',
+        label: 'Volume vs 60-Day Median',
         description: 'Current volume compared to typical daily volume. High spike may indicate ongoing pump.',
         value: volumeRatio,
         displayValue: `${volumeRatio.toFixed(1)}x`,
@@ -683,8 +683,13 @@ export class ChecklistService {
 
     if (bars.length === 0) return result;
 
-    // Calculate median volume
-    const volumes = bars.map(b => b.volume).sort((a, b) => a - b);
+    const recentDaysLimit = 60; // Analyze last 60 trading days
+    const recentBars = bars.slice(-recentDaysLimit);
+
+    if (recentBars.length === 0) return result;
+
+    // Calculate median volume from the same 60-day window
+    const volumes = recentBars.map(b => b.volume).sort((a, b) => a - b);
     const mid = Math.floor(volumes.length / 2);
     result.medianVolume = volumes.length % 2 === 0
       ? (volumes[mid - 1] + volumes[mid]) / 2
@@ -694,7 +699,7 @@ export class ChecklistService {
 
     const elevatedThreshold = 5; // 5x median = warning level
 
-    for (const bar of bars) {
+    for (const bar of recentBars) {
       const ratio = bar.volume / result.medianVolume;
       if (ratio >= elevatedThreshold) {
         result.recentElevatedDays++;
